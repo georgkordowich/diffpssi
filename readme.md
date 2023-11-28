@@ -1,6 +1,6 @@
-# PSIPSY: A Python based tool for dynamic simulation and optimization of power systems
+# PSIPSY: A Python based framework for dynamic simulation and optimization of power systems
 ## Overview
-PSIPSY ontains a framework designed for simulating and optimizing the dynamic behavior 
+PSIPSY contains a framework designed for simulating and optimizing the dynamic behavior 
 of power systems. It includes detailed models of various power system components such as synchronous machines, 
 exciters, governors, and power system stabilizers. The toolkit is built in Python and leverages the power of 
 libraries like torch for efficient computation, making it suitable for both research and educational purposes.

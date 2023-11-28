@@ -1,0 +1,3 @@
+class GenericModel(object):
+    pass
+

@@ -19,7 +19,7 @@ enable the gradient calculation for optimization purposes. The code is still und
 
 1. Clone the repository:
    ```
-   git clone todo
+   git clone git@github.com:georgkordowich/psipsy.git
    ```
 2. Install the required dependencies:
    ```

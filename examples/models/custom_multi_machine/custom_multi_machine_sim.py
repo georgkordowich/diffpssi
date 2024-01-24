@@ -1,17 +1,32 @@
-import time
-
+"""
+This example shows how to simulate a custom multi machine model.
+"""
 import numpy as np
 import matplotlib.pyplot as plt
-import examples.models.custom_multi_machine.custom_multi_machine as mdl
+import examples.models.custom_multi_machine.custom_multi_machine_model as mdl
+from power_sim_lib.simulator import PowerSystemSimulation as Pss
 
-parallel_sims = 10
+parallel_sims = 1
 
-sim = mdl.get_model(parallel_sims)
+sim = Pss(parallel_sims=parallel_sims,
+          sim_time=10,
+          time_step=0.005,
+          solver='euler',
+          grid_data=mdl.load(),
+          )
 
 sim.add_sc_event(1, 1.1, 'Bus 1')
 
 
 def record_desired_parameters(simulation):
+    """
+    Records the desired parameters of the simulation.
+    Args:
+        simulation: The simulation to record the parameters from.
+
+    Returns: A list of the recorded parameters.
+
+    """
     # Record the desired parameters
     record_list = [
         simulation.busses[1].models[0].omega.real,
@@ -34,18 +49,11 @@ def record_desired_parameters(simulation):
 
 
 sim.set_record_function(record_desired_parameters)
-
-start_time = time.time()
-
 t, recorder = sim.run()
 
-end_time = time.time()
-print('Dynamic simulation finished in {:.2f} seconds'.format(end_time - start_time))
-
-# Format shall be [batch, timestep, value
-plt.plot(t, recorder[0, :, :])
+# Format shall be [batch, timestep, value]
+plt.plot(t, recorder[0, :, ::3])
 plt.legend([
-    'IBB',
     'Gen1',
     'Gen2',
     'Gen3',

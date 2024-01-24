@@ -1,9 +1,11 @@
+"""
+Contains the STAB1 model for power system stabilizers. Other models can be added here as well.
+"""
 from power_sim_lib.models.backend import *
-from power_sim_lib.models.blocks import LeadLag, PT1Limited, Washout, Limiter
-from power_sim_lib.models.generic_dynamic_model import GenericModel
+from power_sim_lib.models.blocks import LeadLag, Washout, Limiter
 
 
-class STAB1(GenericModel):
+class STAB1(object):
     """
     Represents the STAB1 (Stabilizer) model in power system simulations.
 
@@ -18,31 +20,26 @@ class STAB1(GenericModel):
         limiter (Limiter): The Limiter block to restrict the output within a specific range.
     """
 
-    def __init__(self, param_dict=None, parallel_sims=None, v_setpoint=1.0):
+    def __init__(self, param_dict, parallel_sims):
         """
         Initializes the STAB1 model with specified parameters.
 
-        Parameters:
+        Args:
             param_dict (dict, optional): A dictionary of parameters for the model.
             parallel_sims (int, optional): Number of parallel simulations to enable.
-            v_setpoint (float, optional): The setpoint for the system voltage. Default is 1.0.
         """
-        if param_dict is not None:
-            # simply take all values from the dictionary and assign them to the object
-            self.__dict__.update(param_dict)
-        else:
-            self.name = 'stab1'
-            self.k_w = 0.0
-            self.t_w = 0.0
-            self.t_1 = 0.0
-            self.t_2 = 0.0
-            self.t_3 = 0.0
-            self.t_4 = 0.0
-            self.h_lim = 0.0
+        self.name = param_dict['name']
+        self.k_w = param_dict['K']
+        self.t_w = param_dict['T']
+        self.t_1 = param_dict['T_1']
+        self.t_2 = param_dict['T_2']
+        self.t_3 = param_dict['T_3']
+        self.t_4 = param_dict['T_4']
+        self.h_lim = param_dict['H_lim']
 
         self.washout = Washout(k_w=self.k_w, t_w=self.t_w, parallel_sims=parallel_sims)
-        self.lead_lag1 = LeadLag(t_1=self.t_1, t_2=self.t_2, parallel_sims=parallel_sims)
-        self.lead_lag2 = LeadLag(t_1=self.t_3, t_2=self.t_4, parallel_sims=parallel_sims)
+        self.lead_lag1 = LeadLag(t_1=self.t_1, t_2=self.t_3, parallel_sims=parallel_sims)
+        self.lead_lag2 = LeadLag(t_1=self.t_2, t_2=self.t_4, parallel_sims=parallel_sims)
         self.limiter = Limiter(limit=self.h_lim, parallel_sims=parallel_sims)
 
     def differential(self):
@@ -52,7 +49,8 @@ class STAB1(GenericModel):
         Returns:
             torch.Tensor: A tensor containing the derivatives of the state variables.
         """
-        return torch.concatenate([self.washout.differential(), self.lead_lag1.differential(), self.lead_lag2.differential()], axis=1)
+        return torch.concatenate([self.washout.differential(), self.lead_lag1.differential(),
+                                  self.lead_lag2.differential()], axis=1)
 
     def get_state_vector(self):
         """
@@ -61,13 +59,14 @@ class STAB1(GenericModel):
         Returns:
             torch.Tensor: The current state vector of the model.
         """
-        return torch.concatenate([self.washout.get_state_vector(), self.lead_lag1.get_state_vector(), self.lead_lag2.get_state_vector()], axis=1)
+        return torch.concatenate([self.washout.get_state_vector(), self.lead_lag1.get_state_vector(),
+                                  self.lead_lag2.get_state_vector()], axis=1)
 
     def set_state_vector(self, x):
         """
         Sets the state vector of the STAB1 model.
 
-        Parameters:
+        Args:
             x (torch.Tensor): A tensor representing the new state vector.
         """
         self.washout.set_state_vector(x[:, 0:1])
@@ -78,7 +77,7 @@ class STAB1(GenericModel):
         """
         Computes the output of the STAB1 model given the frequency deviation.
 
-        Parameters:
+        Args:
             omega_diff (torch.Tensor): The deviation of the system frequency from its nominal value.
 
         Returns:
@@ -95,7 +94,7 @@ class STAB1(GenericModel):
         """
         Enables parallel simulations for the STAB1 model.
 
-        Parameters:
+        Args:
             parallel_sims (int): Number of parallel simulations.
         """
         pass
@@ -104,7 +103,7 @@ class STAB1(GenericModel):
         """
         Initializes the STAB1 model for simulation.
 
-        Parameters:
+        Args:
             v_pss (float or torch.Tensor): The initial value for the PSS voltage.
         """
         # put the values here that shall come out of the blocks in the first time step so that all derivatives are zero

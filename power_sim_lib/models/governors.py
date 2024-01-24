@@ -1,9 +1,11 @@
+"""
+File containing the TGOV1 model. Other governor models can be added here.
+"""
 from power_sim_lib.models.backend import *
 from power_sim_lib.models.blocks import LeadLag, PT1Limited
-from power_sim_lib.models.generic_dynamic_model import GenericModel
 
 
-class TGOV1(GenericModel):
+class TGOV1(object):
     """
     Represents the TGOV1 (Turbine Governor) model in power system simulations.
 
@@ -16,27 +18,23 @@ class TGOV1(GenericModel):
         lead_lag (LeadLag): The LeadLag block representing the compensator.
         p_ref (float or torch.Tensor): The reference power setpoint for the governor.
     """
-    def __init__(self, param_dict=None, parallel_sims=None, v_setpoint=1.0):
+    def __init__(self, param_dict, parallel_sims):
         """
         Initializes the TGOV1 model with specified parameters.
 
-        Parameters:
+        Args:
             param_dict (dict, optional): A dictionary of parameters for the model.
             parallel_sims (int, optional): Number of parallel simulations to enable.
-            v_setpoint (float, optional): The setpoint for the system voltage. Default is 1.0.
         """
-        if param_dict is not None:
-            # simply take all values from the dictionary and assign them to the object
-            self.__dict__.update(param_dict)
-        else:
-            self.name = 'tgov1'
-            self.r = 0.0
-            self.d_t = 0.0
-            self.v_min = 0.0
-            self.v_max = 0.0
-            self.t_1 = 0.0
-            self.t_2 = 0.0
-            self.t_3 = 0.0
+
+        self.name = param_dict['name']
+        self.r = param_dict['R']
+        self.d_t = param_dict['D_t']
+        self.t_1 = param_dict['T_1']
+        self.t_2 = param_dict['T_2']
+        self.t_3 = param_dict['T_3']
+        self.v_min = param_dict['V_min']
+        self.v_max = param_dict['V_max']
 
         droop = 1 / self.r
         self.pt1_lim = PT1Limited(t_pt1=self.t_1, gain_pt1=droop, lim_min=self.v_min, lim_max=self.v_max,
@@ -67,7 +65,7 @@ class TGOV1(GenericModel):
         """
         Sets the state vector of the TGOV1 model.
 
-        Parameters:
+        Args:
             x (torch.Tensor): A tensor representing the new state vector.
         """
         self.pt1_lim.set_state_vector(x[:, 0:1])
@@ -77,7 +75,7 @@ class TGOV1(GenericModel):
         """
         Computes the output of the TGOV1 model given the frequency deviation.
 
-        Parameters:
+        Args:
             omega_diff (float or torch.Tensor): The deviation of the system frequency from its nominal value.
 
         Returns:
@@ -97,7 +95,7 @@ class TGOV1(GenericModel):
         """
         Enables parallel simulations by adjusting the reference power setpoint for the specified number of simulations.
 
-        Parameters:
+        Args:
             parallel_sims (int): Number of parallel simulations.
         """
         self.p_ref = torch.ones((parallel_sims, 1), dtype=torch.float64) * self.p_ref
@@ -106,7 +104,7 @@ class TGOV1(GenericModel):
         """
         Initializes the TGOV1 model for simulation.
 
-        Parameters:
+        Args:
             p_mech (float or torch.Tensor): The initial mechanical power.
         """
         # put the values here that shall come out of the blocks in the first time step so that all derivatives are zero

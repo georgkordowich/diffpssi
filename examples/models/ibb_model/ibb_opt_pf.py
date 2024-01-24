@@ -1,15 +1,24 @@
+"""
+This example shows how to use the power factory API to optimize the parameters of a power factory model.
+"""
 import os
-import random
-import sys
 from itertools import count
 
 import numpy as np
-from pf_util.pf_tools import pf, reset_project
+from pf_util.pf_tools import reset_project
 import time
 
 np.random.seed(0)
 
+
 def set_generator_parameters(prj, original_params):
+    """
+    Function to set the generator parameters in the power factory project randomly, so they can be optimized.
+
+    Args:
+        prj: The power factory project.
+        original_params: The original parameters of the generators.
+    """
     sym = prj.GetContents('G1.ElmSym')[0]
     sym_type = sym.typ_id
 
@@ -21,6 +30,14 @@ def set_generator_parameters(prj, original_params):
 
 
 def get_generator_parameters(prj):
+    """
+    Function to get the generator parameters from the power factory project.
+    Args:
+        prj: The power factory project.
+
+    Returns: A list of the generator parameters.
+
+    """
     sym = prj.GetContents('G1.ElmSym')[0]
     sym_type = sym.typ_id
 
@@ -34,7 +51,9 @@ def get_generator_parameters(prj):
 
 
 def main():
-
+    """
+    Main function to run the parameter estimation.
+    """
     t_start = time.time()
 
     pf_path = os.path.abspath(r"data\SMIBKundurOptim.pfd")
@@ -85,7 +104,6 @@ def main():
         print('----------------------------------------------------------------------------------------------------')
 
         if all(abs(i) < 1 for i in rel_errors):
-
             print('Optimization finished in {:.2f} seconds'.format(time.time() - t_start))
             break
 

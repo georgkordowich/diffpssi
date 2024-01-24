@@ -1,15 +1,24 @@
+"""
+This example shows how to use the parameter identification module to identify the parameters of the generators in the
+IEEE 9 bus system in PowerFactory.
+"""
 import os
-import random
-import sys
 from itertools import count
 
 import numpy as np
-from pf_util.pf_tools import pf, reset_project
+from pf_util.pf_tools import reset_project
 import time
 
 np.random.seed(0)
 
+
 def set_generator_parameters(prj, original_params):
+    """
+    Function to set the generator parameters in the power factory project randomly, so they can be optimized.
+    Args:
+        prj: The power factory project.
+        original_params: The original parameters of the generators.
+    """
     sym = prj.GetContents('G1.ElmSym')[0]
     sym_type = sym.typ_id
     sym_type.h = original_params[0] * np.random.uniform(0.5, 2.0)
@@ -34,24 +43,22 @@ def set_generator_parameters(prj, original_params):
     sym_type.xds = original_params[13] * np.random.uniform(0.5, 2.0)
     sym_type.xqs = original_params[14] * np.random.uniform(0.5, 2.0)
 
-    sym = prj.GetContents('G4.ElmSym')[0]
-    sym_type = sym.typ_id
-    sym_type.h = original_params[15] * np.random.uniform(0.5, 2.0)
-    sym_type.xd = original_params[16] * np.random.uniform(0.5, 2.0)
-    sym_type.xq = original_params[17] * np.random.uniform(0.5, 2.0)
-    sym_type.xds = original_params[18] * np.random.uniform(0.5, 2.0)
-    sym_type.xqs = original_params[19] * np.random.uniform(0.5, 2.0)
-
 
 def get_generator_parameters(prj):
+    """
+    Function to get the generator parameters from the power factory project.
+    Args:
+        prj: The power factory project.
+
+    Returns: A list of the generator parameters.
+
+    """
     sym1 = prj.GetContents('G1.ElmSym')[0]
     sym_type1 = sym1.typ_id
     sym2 = prj.GetContents('G2.ElmSym')[0]
     sym_type2 = sym2.typ_id
     sym3 = prj.GetContents('G3.ElmSym')[0]
     sym_type3 = sym3.typ_id
-    sym4 = prj.GetContents('G4.ElmSym')[0]
-    sym_type4 = sym4.typ_id
 
     return [
         sym_type1.h,
@@ -71,46 +78,35 @@ def get_generator_parameters(prj):
         sym_type3.xq,
         sym_type3.xds,
         sym_type3.xqs,
-
-        sym_type4.h,
-        sym_type4.xd,
-        sym_type4.xq,
-        sym_type4.xds,
-        sym_type4.xqs,
     ]
 
 
 def main():
-
+    """
+    Main function to run the parameter estimation.
+    """
     t_start = time.time()
 
-    pf_path = os.path.abspath(r"data\CustomMultiMachineOpti.pfd")
-
+    pf_path = os.path.abspath(r"data\Nine-bus System Opti.pfd")
     prj, sc, param_ident, grid = reset_project(pf_path)
 
-    H_orig_gen1 = 6.0
-    X_d_orig_gen1 = 1.81
-    X_q_orig_gen1 = 1.76
-    X_ds_orig_gen1 = 0.3
-    X_qs_orig_gen1 = 0.65
+    H_orig_gen1 = 9.55
+    X_d_orig_gen1 = 0.36135
+    X_q_orig_gen1 = 0.2398275
+    X_ds_orig_gen1 = 0.15048
+    X_qs_orig_gen1 = 0.15048
 
-    H_orig_gen2 = 4.9
-    X_d_orig_gen2 = 1.81
-    X_q_orig_gen2 = 1.76
-    X_ds_orig_gen2 = 0.3
-    X_qs_orig_gen2 = 0.65
+    H_orig_gen2 = 3.92
+    X_d_orig_gen2 = 1.719936
+    X_q_orig_gen2 = 1.65984
+    X_ds_orig_gen2 = 0.230016
+    X_qs_orig_gen2 = 0.378048
 
-    H_orig_gen3 = 4.1
-    X_d_orig_gen3 = 1.81
-    X_q_orig_gen3 = 1.76
-    X_ds_orig_gen3 = 0.3
-    X_qs_orig_gen3 = 0.65
-
-    H_orig_gen4 = 3.2
-    X_d_orig_gen4 = 1.81
-    X_q_orig_gen4 = 1.76
-    X_ds_orig_gen4 = 0.3
-    X_qs_orig_gen4 = 0.65
+    H_orig_gen3 = 2.766544
+    X_d_orig_gen3 = 1.68
+    X_q_orig_gen3 = 1.609984
+    X_ds_orig_gen3 = 0.232064
+    X_qs_orig_gen3 = 0.32
 
     original_params = [
         H_orig_gen1,
@@ -130,12 +126,6 @@ def main():
         X_q_orig_gen3,
         X_ds_orig_gen3,
         X_qs_orig_gen3,
-
-        H_orig_gen4,
-        X_d_orig_gen4,
-        X_q_orig_gen4,
-        X_ds_orig_gen4,
-        X_qs_orig_gen4,
     ]
 
     for ia in count():
@@ -161,15 +151,21 @@ def main():
 
         rel_errors = (np.array(param_array) - np.array(original_params)) * 100 / np.array(original_params)
 
-        print('Parameter Estimation step {} finished in {:.2f} seconds'.format(ia, end_time - start_time))
-        print('Initial Params: ', ['%.3f' % elem for elem in initial_params])
-        print('Abs. Data: ', ['%.3f' % elem for elem in param_array])
-        print('Rel. Errors: ', ['%.3f' % elem for elem in rel_errors])
-        print('----------------------------------------------------------------------------------------------------')
+        # only print if the optimization took longer than 1 second, otherwise it was cancelled
+        if (end_time - start_time) > 1:
+            print('Parameter Estimation step {} finished in {:.2f} seconds'.format(ia, end_time - start_time))
+            print('Initial Params: ', ['%.3f' % elem for elem in initial_params])
+            print('Abs. Data: ', ['%.3f' % elem for elem in param_array])
+            print('Rel. Errors: ', ['%.3f' % elem for elem in rel_errors])
+            print(
+                '----------------------------------------------------------------------------------------------------')
 
-        if all(abs(i) < 1 for i in rel_errors):
-
+        if all(abs(i) < 5 for i in rel_errors):
             print('Optimization finished in {:.2f} seconds'.format(time.time() - t_start))
+            break
+
+        if (time.time() - t_start) > 60 * 60 * 10:
+            print('Optimization took longer than 10 hours. Stopping.')
             break
 
 

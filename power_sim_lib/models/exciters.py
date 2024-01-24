@@ -1,9 +1,12 @@
+"""
+Contains the SEXS (Simplified Excitation System) model for power system simulations.
+Other models can be added here as well.
+"""
 from power_sim_lib.models.backend import *
 from power_sim_lib.models.blocks import LeadLag, PT1Limited
-from power_sim_lib.models.generic_dynamic_model import GenericModel
 
 
-class SEXS(GenericModel):
+class SEXS(object):
     """
     Represents the SEXS (Simplified Excitation System) model in power system simulations.
 
@@ -17,26 +20,22 @@ class SEXS(GenericModel):
         v_setpoint (float or torch.Tensor): The setpoint for the system voltage.
         bias (float or torch.Tensor): A bias value for voltage control.
     """
-    def __init__(self, param_dict=None, parallel_sims=None, v_setpoint=1.0):
+    def __init__(self, param_dict, parallel_sims, v_setpoint):
         """
         Initializes the SEXS model with specified parameters.
 
-        Parameters:
+        Args:
             param_dict (dict, optional): A dictionary of parameters for the model.
             parallel_sims (int, optional): Number of parallel simulations to enable.
             v_setpoint (float, optional): The setpoint for the system voltage. Default is 1.0.
         """
-        if param_dict is not None:
-            # simply take all values from the dictionary and assign them to the object
-            self.__dict__.update(param_dict)
-        else:
-            self.name = 'SEXS1'
-            self.k = 0.0
-            self.t_a = 0.0
-            self.t_b = 0.0
-            self.t_e = 0.0
-            self.e_min = 0.0
-            self.e_max = 0.0
+        self.name = param_dict['name']
+        self.t_a = param_dict['T_a']
+        self.t_b = param_dict['T_b']
+        self.t_e = param_dict['T_e']
+        self.k = param_dict['K']
+        self.e_min = param_dict['E_min']
+        self.e_max = param_dict['E_max']
 
         self.lead_lag = LeadLag(t_1=self.t_a, t_2=self.t_b, parallel_sims=parallel_sims)
         self.pt1_lim = PT1Limited(t_pt1=self.t_e, gain_pt1=self.k, lim_min=self.e_min, lim_max=self.e_max,
@@ -67,7 +66,7 @@ class SEXS(GenericModel):
         """
         Sets the state vector of the SEXS model.
 
-        Parameters:
+        Args:
             x (torch.Tensor): A tensor representing the new state vector.
         """
         self.lead_lag.set_state_vector(x[:, 0:1])
@@ -77,7 +76,7 @@ class SEXS(GenericModel):
         """
         Computes the output of the SEXS model given an input value.
 
-        Parameters:
+        Args:
             input_value (float or torch.Tensor): The input value to the model.
 
         Returns:
@@ -92,7 +91,7 @@ class SEXS(GenericModel):
         """
         Enables parallel simulations by transforming the model's parameters into tensors.
 
-        Parameters:
+        Args:
             parallel_sims (int): Number of parallel simulations.
         """
         self.v_setpoint = torch.ones((parallel_sims, 1), dtype=torch.float64) * self.v_setpoint
@@ -102,7 +101,7 @@ class SEXS(GenericModel):
         """
         Initializes the SEXS model for simulation.
 
-        Parameters:
+        Args:
             e_fd (float or torch.Tensor): The initial value for the field voltage.
         """
         # put the values here that shall come out of the blocks in the first time step so that all derivatives are zero

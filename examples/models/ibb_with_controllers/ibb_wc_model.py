@@ -1,91 +1,58 @@
-from power_sim_lib.simulator import PowerSystemSimulation as Pss
-
-ibb_dict = {
-    'name': 'IBB 1',
-    's_n': 22000,
-    'v_n': 24,
-    'p_soll_mw': -1998,
-    'v_soll': 0.995,
-    'h': 3.5e7,
-    'd': 0,
-    'x_d': 1.81,
-    'x_q': 1.76,
-    'x_d_t': 0.3,
-    'x_q_t': 0.65,
-    'x_d_st': 0.23,
-    'x_q_st': 0.23,
-    't_d0_t': 8.0,
-    't_q0_t': 1,
-    't_d0_st': 0.03,
-    't_q0_st': 0.07
-}
-gen1_dict = {
-    'name': 'Gen 1',
-    's_n': 2200,
-    'v_n': 24,
-    'p_soll_mw': 1998,
-    'v_soll': 1,
-    'h': 3.5,
-    'd': 0,
-    'x_d': 1.81,
-    'x_q': 1.76,
-    'x_d_t': 0.3,
-    'x_q_t': 0.65,
-    'x_d_st': 0.23,
-    'x_q_st': 0.23,
-    't_d0_t': 8.0,
-    't_q0_t': 1,
-    't_d0_st': 0.03,
-    't_q0_st': 0.07
-}
-
-sexs_dict = {
-    'name': 'SEXS Gen 1',
-    'k': 100,
-    't_a': 4.0,
-    't_b': 10.0,
-    't_e': 0.1,
-    'e_min': -3.0,
-    'e_max': 3.0,
-}
-
-gov_dict = {
-    'name': 'Gov Gen 1',
-    'r': 0.05,
-    'd_t': 0.02,
-    'v_min': 0.0,
-    'v_max': 1.0,
-    't_1': 0.5,
-    't_2': 2.0,
-    't_3': 2.0,
-}
-
-pss_dict = {
-    'name': 'PSS Gen 1',
-    'k_w': 50,
-    't_w': 10,
-    't_1': 0.5,
-    't_2': 0.05,
-    't_3': 0.5,
-    't_4': 0.05,
-    'h_lim': 0.03,
-}
+"""
+This module contains the data for the simple infinite bus bar model with controllers. Mainly used for testing.
+"""
 
 
-def get_model(parallel_sims):
-    # Create a new simulator object
-    sim = Pss(parallel_sims=parallel_sims, base_mva=2200, fn=60, base_voltage=24, sim_time=10)
-    sim.add_bus(name='Bus 0', lf_type='SL', v_n=24)
-    sim.add_bus(name='Bus 1', lf_type='PV', v_n=24)
+def load():
+    """
+    This function returns a dictionary that contains the data for the simple infinite bus bar model.
+    Returns: The data in the form of a dictionary.
 
-    # Add a model to the second bus
-    sim.add_generator('Bus 0', ibb_dict)
-    sim.add_generator('Bus 1', gen1_dict)
+    """
+    return {
+        'base_mva': 2200,
+        'f': 60,
+        'slack_bus': 'B1',
+        'base_voltage': 24,
 
-    sim.busses[sim.bus_names['Bus 1']].models[0].add_exciter(sexs_dict)
-    sim.busses[sim.bus_names['Bus 1']].models[0].add_governor(gov_dict)
-    sim.busses[sim.bus_names['Bus 1']].models[0].add_pss(pss_dict)
+        'busses': [
+            ['name', 'V_n'],
+            ['B1', 24],
+            ['B2', 24],
+        ],
 
-    sim.add_line('Bus 0', 'Bus 1', r=0, x=0.65, b=0, length=1, unit='pu')
+        'lines': [
+            ['name', 'from_bus', 'to_bus', 'length', 'S_n', 'V_n', 'unit', 'R', 'X', 'B'],
+            ['L1-2', 'B1', 'B2', 1, 2200, 24, 'p.u.', 0, 0.65, 0],
+        ],
 
-    return sim
+        'generators': {
+            'GEN': [
+                ['name', 'bus', 'S_n', 'V_n', 'P', 'V', 'H', 'D', 'X_d', 'X_q', 'X_d_t', 'X_q_t', 'X_d_st', 'X_q_st',
+                 'T_d0_t', 'T_q0_t', 'T_d0_st', 'T_q0_st'],
+                ['IB', 'B1', 2200 * 10, 24, -1998, 0.995, 3.5e7, 0, 1.81, 1.76, 0.3, 0.65, 0.23, 0.23, 8, 1, 0.03,
+                 0.07],
+                ['G1', 'B2', 2200, 24, 1998, 1, 3.5, 0, 1.81, 1.76, 0.3, 0.65, 0.23, 0.23, 8.0, 1, 0.03, 0.07],
+            ]
+        },
+
+        'gov': {
+            'TGOV1': [
+                ['name', 'gen', 'R', 'D_t', 'V_min', 'V_max', 'T_1', 'T_2', 'T_3'],
+                ['GOV1', 'G1', 0.05, 0.02, 0, 1, 0.5, 2, 2],
+            ]
+        },
+
+        'avr': {
+            'SEXS': [
+                ['name', 'gen', 'K', 'T_a', 'T_b', 'T_e', 'E_min', 'E_max'],
+                ['AVR1', 'G1', 100, 4.0, 10.0, 0.1, -3, 3],
+            ]
+        },
+        "pss": {
+            "STAB1": [
+                ["name", "gen", "K", "T", "T_1", "T_2", "T_3", "T_4", "H_lim"],
+                ["PSS1", "G1", 50, 10.0, 0.5, 0.5, 0.05, 0.05, 0.03],
+            ]
+        }
+    }

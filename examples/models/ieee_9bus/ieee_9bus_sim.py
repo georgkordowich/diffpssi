@@ -1,34 +1,54 @@
-import time
-
+"""
+This example shows how to simulate the IEEE 9 bus system.
+"""
 import numpy as np
 import matplotlib.pyplot as plt
-import examples.models.ieee_9bus.ieee_9bus as mdl
+import examples.models.ieee_9bus.ieee_9bus_model as mdl
+from power_sim_lib.simulator import PowerSystemSimulation as Pss
 
-parallel_sims = 2
+parallel_sims = 1
 
-sim = mdl.get_model(parallel_sims)
+sim = Pss(parallel_sims=parallel_sims,
+          sim_time=5,
+          time_step=0.005,
+          solver='rk4',
+          grid_data=mdl.load(),
+          )
 
-sim.add_sc_event(1, 1.05, 'Bus 1')
+sim.add_sc_event(1, 1.05, 'B8')
 
 
 def record_desired_parameters(simulation):
+    """
+    Records the desired parameters of the simulation.
+    Args:
+        simulation: The simulation to record the parameters from.
+
+    Returns: A list of the recorded parameters.
+
+    """
     # Record the desired parameters
     record_list = [
         simulation.busses[0].models[0].omega.real,
+        simulation.busses[0].models[0].p_e,
+        simulation.busses[0].models[0].v_bb.real,
+        simulation.busses[0].models[0].v_bb.imag,
+
         simulation.busses[1].models[0].omega.real,
+        simulation.busses[1].models[0].p_e,
+        simulation.busses[1].voltage.real,
+        simulation.busses[1].voltage.imag,
+
         simulation.busses[2].models[0].omega.real,
+        simulation.busses[2].models[0].p_e,
+        simulation.busses[2].voltage.real,
+        simulation.busses[2].voltage.imag,
     ]
     return record_list
 
 
 sim.set_record_function(record_desired_parameters)
-
-start_time = time.time()
-
 t, recorder = sim.run()
-
-end_time = time.time()
-print('Dynamic simulation finished in {:.2f} seconds'.format(end_time - start_time))
 
 # Format shall be [batch, timestep, value]
 # create a new subplot for each parameter
@@ -42,4 +62,10 @@ for i in range(len(recorder[0, 0, :])):
 
 plt.show()
 
-np.save('data/original_data.npy', recorder[0].real)
+# add time to the first column
+saver = np.zeros((len(t), len(recorder[0, 0, :]) + 1))
+saver[:, 0] = t
+saver[:, 1:] = recorder[0, :, :].real
+
+# np.save('data/original_data.npy', recorder[0].real)
+np.save('data/original_data.npy', saver)

@@ -1,0 +1,9 @@
+Ours Euler: Try 1: 1359 seconds (euler), Try 2: 2103.48 seconds (heun), Try 3:  seconds
+
+BFGS, NumIter: 10000, NumEval = 10000: No Result Found After 10 Hours
+BFGS, NumIter: 1000, NumEval = 1000: No Result Found After 10 Hours
+PSO, NumIter: 10000, NumEval = 10000: 6998
+PSO, NumIter: 1000, NumEval = 1000: No Result Found After 10 Hours
+
+
+

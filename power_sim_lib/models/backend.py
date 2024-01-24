@@ -1,4 +1,9 @@
-BACKEND = 'numpy'  # 'torch' or 'numpy'
+"""
+File that defines the backend for the simulation models.
+Torch enables GPU acceleration, and gradient tracking. Numpy is faster, but does not support GPU acceleration or
+gradient tracking. Note: Even if torch is used, GPU is not always faster than CPU.
+"""
+BACKEND = 'torch'  # 'torch' or 'numpy'
 DEFAULT_DEVICE = 'cpu'  # 'cuda' or 'cpu'
 
 if BACKEND == 'torch':
@@ -8,7 +13,7 @@ if BACKEND == 'torch':
         torch.set_default_device('cuda')
         print('Using torch with CUDA on GPU')
     else:
-        print('Using torch on CPU.')
+        print('Using torch on CPU')
 
 elif BACKEND == 'numpy':
     import numpy as torch
@@ -17,4 +22,3 @@ elif BACKEND == 'numpy':
     print('Using numpy as backend')
 else:
     raise ValueError('No backend specified')
-

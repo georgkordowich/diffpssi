@@ -3,15 +3,16 @@ The main simulation class. This class represents a power system simulation. It c
 about the system, such as the buses, lines, transformers, etc. It also contains the admittance matrix, which is
 computed based on the system configuration. The simulation can be run by calling the run() method.
 """
+import os
 import time
 import numpy as np
 from tqdm import tqdm
 
-from power_sim_lib.load_flow import do_load_flow
-from power_sim_lib.models.synchronous_machine import SynchMachine
-from power_sim_lib.models.static_models import *
-from power_sim_lib.models.backend import *
-from power_sim_lib.solvers import solver_dict
+from src.diffpssi.power_sim_lib.load_flow import do_load_flow
+from src.diffpssi.power_sim_lib.models.synchronous_machine import SynchMachine
+from src.diffpssi.power_sim_lib.models.static_models import *
+from src.diffpssi.power_sim_lib.backend import *
+from src.diffpssi.power_sim_lib.solvers import solver_dict
 
 
 class PowerSystemSimulation(object):
@@ -87,12 +88,20 @@ class PowerSystemSimulation(object):
         self.record_func = None
         self.verbose = verbose
 
-        self.solver = solver_dict[solver]()
+        try:
+            # this should only be used for integration tests
+            self.solver = solver_dict[os.environ['DIFFPSSI_FORCE_INTEGRATOR']]()
+            print('WARNING: FORCING THE USE OF THE {} INTEGRATOR. '
+                  'THIS SHOULD ONLY HAPPEN FOR UNITTESTS'.format(os.environ['DIFFPSSI_FORCE_INTEGRATOR']))
+        except KeyError:
+            self.solver = solver_dict[solver]()
 
         self.fn = grid_data['f']
         self.base_mva = grid_data['base_mva']
         self.base_voltage = grid_data['base_voltage']
         self.create_grid(grid_data)
+
+        self.backend = BACKEND
 
     def get_generator_by_name(self, name):
         """
@@ -406,7 +415,7 @@ class PowerSystemSimulation(object):
                 self.dynamic_y_matrix[:, :, :] = original_y_matrix
 
             # do a step with the solver
-            self.solver.step()
+            self.solver.step(self)
 
             # Record the state of the system
             try:

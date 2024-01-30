@@ -4,10 +4,10 @@ The model is a 6th order differential equation, which is solved during the simul
 """
 import torch
 
-from power_sim_lib.models.exciters import SEXS
-from power_sim_lib.models.backend import *
-from power_sim_lib.models.governors import TGOV1
-from power_sim_lib.models.stabilizers import STAB1
+from src.diffpssi.power_sim_lib.models.exciters import SEXS
+from src.diffpssi.power_sim_lib.backend import *
+from src.diffpssi.power_sim_lib.models.governors import TGOV1
+from src.diffpssi.power_sim_lib.models.stabilizers import STAB1
 
 
 class SynchMachine(object):

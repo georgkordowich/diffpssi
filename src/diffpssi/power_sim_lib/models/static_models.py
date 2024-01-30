@@ -5,7 +5,7 @@ modeled as static components.
 """
 import torch
 
-from power_sim_lib.models.backend import *
+from src.diffpssi.power_sim_lib.backend import *
 
 
 class ScEvent(object):

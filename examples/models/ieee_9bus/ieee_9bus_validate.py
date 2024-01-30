@@ -7,7 +7,7 @@ import matplotlib as mpl
 from tools.colors import *
 
 # load the data
-path_data_mine = r'data/original_data.npy'
+path_data_mine = r'data/original_data_t.npy'
 path_power_factory = r'data/pf_data.elm'
 data_ours = np.load(path_data_mine)
 data_pf = np.loadtxt(path_power_factory, skiprows=2)

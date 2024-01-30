@@ -3,8 +3,17 @@ File that defines the backend for the simulation models.
 Torch enables GPU acceleration, and gradient tracking. Numpy is faster, but does not support GPU acceleration or
 gradient tracking. Note: Even if torch is used, GPU is not always faster than CPU.
 """
-BACKEND = 'torch'  # 'torch' or 'numpy'
+import os
+
+BACKEND = 'numpy'  # 'torch' or 'numpy'
 DEFAULT_DEVICE = 'cpu'  # 'cuda' or 'cpu'
+
+try:
+    BACKEND = os.environ['DIFFPSSI_FORCE_SIM_BACKEND']
+    print('WARNING: FORCING THE USE OF {} AS BACKEND.'
+          'THIS SHOULD ONLY HAPPEN FOR UNITTESTS'.format(os.environ['DIFFPSSI_FORCE_SIM_BACKEND']))
+except KeyError:
+    pass
 
 if BACKEND == 'torch':
     import torch

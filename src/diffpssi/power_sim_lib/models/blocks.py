@@ -1,7 +1,7 @@
 """
 File contains implemented controller blocks for power system simulations.
 """
-from power_sim_lib.models.backend import *
+from src.diffpssi.power_sim_lib.backend import *
 
 
 class PT1Limited(object):

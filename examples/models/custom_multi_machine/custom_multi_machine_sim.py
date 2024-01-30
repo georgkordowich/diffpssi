@@ -4,18 +4,7 @@ This example shows how to simulate a custom multi machine model.
 import numpy as np
 import matplotlib.pyplot as plt
 import examples.models.custom_multi_machine.custom_multi_machine_model as mdl
-from power_sim_lib.simulator import PowerSystemSimulation as Pss
-
-parallel_sims = 1
-
-sim = Pss(parallel_sims=parallel_sims,
-          sim_time=10,
-          time_step=0.005,
-          solver='euler',
-          grid_data=mdl.load(),
-          )
-
-sim.add_sc_event(1, 1.1, 'Bus 1')
+from src.diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
 
 
 def record_desired_parameters(simulation):
@@ -48,17 +37,36 @@ def record_desired_parameters(simulation):
     return record_list
 
 
-sim.set_record_function(record_desired_parameters)
-t, recorder = sim.run()
+def main():
+    """
+    This function simulates the custom multi machine model.
+    """
+    parallel_sims = 1
 
-# Format shall be [batch, timestep, value]
-plt.plot(t, recorder[0, :, ::3])
-plt.legend([
-    'Gen1',
-    'Gen2',
-    'Gen3',
-    'Gen4',
-])
-plt.show()
+    sim = Pss(parallel_sims=parallel_sims,
+              sim_time=10,
+              time_step=0.005,
+              solver='heun',
+              grid_data=mdl.load(),
+              )
 
-np.save('data/original_data.npy', recorder[0].real)
+    sim.add_sc_event(1, 1.1, 'Bus 1')
+
+    sim.set_record_function(record_desired_parameters)
+    t, recorder = sim.run()
+
+    # Format shall be [batch, timestep, value]
+    plt.plot(t, recorder[0, :, ::3])
+    plt.legend([
+        'Gen1',
+        'Gen2',
+        'Gen3',
+        'Gen4',
+    ])
+    plt.show()
+
+    np.save('data/original_data.npy', recorder[0].real)
+
+
+if __name__ == '__main__':
+    main()

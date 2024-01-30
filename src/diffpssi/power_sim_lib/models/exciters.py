@@ -2,8 +2,8 @@
 Contains the SEXS (Simplified Excitation System) model for power system simulations.
 Other models can be added here as well.
 """
-from power_sim_lib.models.backend import *
-from power_sim_lib.models.blocks import LeadLag, PT1Limited
+from src.diffpssi.power_sim_lib.backend import *
+from src.diffpssi.power_sim_lib.models.blocks import LeadLag, PT1Limited
 
 
 class SEXS(object):

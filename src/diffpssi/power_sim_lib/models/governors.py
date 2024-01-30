@@ -1,8 +1,8 @@
 """
 File containing the TGOV1 model. Other governor models can be added here.
 """
-from power_sim_lib.models.backend import *
-from power_sim_lib.models.blocks import LeadLag, PT1Limited
+from src.diffpssi.power_sim_lib.backend import *
+from src.diffpssi.power_sim_lib.models.blocks import LeadLag, PT1Limited
 
 
 class TGOV1(object):

@@ -6,7 +6,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
-path_data_mine = r'data/original_data.npy'
+path_data_mine = r'data/original_data_t.npy'
 path_power_factory = r'data/pf_data.txt'
 data_ours = np.load(path_data_mine)
 data_pf = np.loadtxt(path_power_factory, skiprows=2)

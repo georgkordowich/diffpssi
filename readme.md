@@ -38,32 +38,10 @@ in the future.
    ```
 
 ## Usage and Examples
-Detailed usage instructions and examples can be found in the `examples` directory. For a guided introduction, check out the IBB model simulation example under `examples/models/ibb_model/ibb_sim.py` and then corresponding model in `examples/models/ibb_model.py`.
+Detailed usage instructions and examples can be found in the `examples` directory. For a guided introduction, check out the IBB model simulation example under `examples/models/ibb_model/ibb_sim.py` and the corresponding model in `examples/models/ibb_model.py`.
 
 To define a model, you first need to creat the power system simulation (Pss) itself. Afterward, you can add busses,
 generators, and lines as desired.
-```python
-# Create a new simulator object where you define the base quantities of the system
-sim = Pss(fn=60,
-          base_mva=2200,
-          base_voltage=24,
-          time_step=0.005,
-          sim_time=10,
-          parallel_sims=parallel_sims)
-
-# Add buses as desired, identified by a name and a load flow type
-sim.add_bus(name='Bus 0', lf_type='SL', v_n=24)
-sim.add_bus(name='Bus 1', lf_type='PV', v_n=24)
-
-# Add generators as desired, identified by a name and a dictionary of parameters
-sim.add_generator('Bus 0', ibb_dict)
-sim.add_generator('Bus 1', gen1_dict)
-
-# Add lines as desired, identified by a name and a dictionary of parameters
-sim.add_line('Bus 0', 'Bus 1', r=0, x=0.65, b=0, length=1, unit='pu')
-
-return sim
-```
 
 Once the model is defined, you can run a simulation. One unique feature of this framework is that you can define
 the number of parallel simulations to run. This is useful for parameter optimization, where you can run multiple

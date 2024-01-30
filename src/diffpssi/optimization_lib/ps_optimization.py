@@ -1,11 +1,12 @@
 """
 This file contains the optimization procedure of the power system parameters.
 """
+import os
 import time
 import torch
 from matplotlib import pyplot as plt
 
-from optimization_lib.optimizers import CustomBFGSREALOptimizer
+from src.diffpssi.optimization_lib.optimizers import CustomBFGSREALOptimizer
 
 # currently only bfgs is supported, as it works best by far
 optimizer_dict = {
@@ -49,6 +50,11 @@ class PowerSystemOptimization(object):
         :return: None
         """
         self.sim = sim
+
+        if sim.backend == 'numpy':
+            raise NotImplementedError('Optimization is only supported for the PyTorch backend.'
+                                      'Please set the backend to PyTorch in power_sim_lib/backend.py')
+
         self.target_data = original_data
         self.optimizer = optimizer_dict[optimizer](params_optimizable, max_step=max_step, decay=decay)
 
@@ -145,6 +151,10 @@ class PowerSystemOptimization(object):
         Args:
             max_steps: The maximum number of optimization steps that should be performed.
         """
+        if os.environ['DIFFPSSI_FORCE_OPT_ITERS'] is not None:
+            max_steps = int(os.environ['DIFFPSSI_FORCE_OPT_ITERS'])
+            print('WARNING: FORCING THE USE OF {} OPTIMIZATION ITERATION.'
+                  'THIS SHOULD ONLY HAPPEN FOR UNITTESTS'.format(os.environ['DIFFPSSI_FORCE_OPT_ITERS']))
         opt_start_time = time.time()
         for opt_step in range(max_steps):
             opt_step_start = time.time()
@@ -229,6 +239,6 @@ class PowerSystemOptimization(object):
             self.last_min_loss = min_loss_val
 
         print('Optimization finished in {:.2f} seconds'.format(time.time() - opt_start_time))
-        plt_original_data = self.target_data[in_loss_idx].detach().numpy()
+        plt_original_data = self.target_data[min_loss_idx].detach().numpy()
         plt_results = results[min_loss_idx].detach().numpy()
         self.plot_state(t, plt_results, plt_original_data, opt_step)

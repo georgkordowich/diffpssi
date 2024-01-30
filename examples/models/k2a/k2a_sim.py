@@ -4,18 +4,7 @@ File contains an example of how to simulate the K2A model.
 import numpy as np
 import matplotlib.pyplot as plt
 import examples.models.k2a.k2a_model as mdl
-from power_sim_lib.simulator import PowerSystemSimulation as Pss
-
-parallel_sims = 1
-
-sim = Pss(parallel_sims=parallel_sims,
-          sim_time=10,
-          time_step=0.005,
-          solver='rk4',
-          grid_data=mdl.load(),
-          )
-
-sim.add_sc_event(1, 1.1, 'B1')
+from src.diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
 
 
 def record_desired_parameters(simulation):
@@ -52,25 +41,45 @@ def record_desired_parameters(simulation):
     return record_list
 
 
-sim.set_record_function(record_desired_parameters)
-t, recorder = sim.run()
+def main():
+    """
+    This function simulates the K2A model.
+    """
+    parallel_sims = 1
 
-# Format shall be [batch, timestep, value]
-# create a new subplot for each parameter
-plt.figure()
+    sim = Pss(parallel_sims=parallel_sims,
+              sim_time=10,
+              time_step=0.005,
+              solver='heun',
+              grid_data=mdl.load(),
+              )
 
-for i in range(len(recorder[0, 0, :])):
-    plt.subplot(len(recorder[0, 0, :]), 1, i + 1)
-    plt.plot(t, recorder[0, :, i].real)
-    plt.ylabel('Parameter {}'.format(i))
-    plt.xlabel('Time [s]')
+    sim.add_sc_event(1, 1.1, 'B1')
 
-plt.savefig('data/plots/original.png'.format())
-plt.show()
+    sim.set_record_function(record_desired_parameters)
+    t, recorder = sim.run()
 
-# add time to the first column
-saver = np.zeros((len(t), len(recorder[0, 0, :]) + 1))
-saver[:, 0] = t
-saver[:, 1:] = recorder[0, :, :].real
+    # Format shall be [batch, timestep, value]
+    # create a new subplot for each parameter
+    plt.figure()
 
-np.save('data/original_data.npy', saver)
+    for i in range(len(recorder[0, 0, :])):
+        plt.subplot(len(recorder[0, 0, :]), 1, i + 1)
+        plt.plot(t, recorder[0, :, i].real)
+        plt.ylabel('Parameter {}'.format(i))
+        plt.xlabel('Time [s]')
+
+    plt.savefig('data/plots/original.png'.format())
+    plt.show()
+
+    # add time to the first column
+    saver = np.zeros((len(t), len(recorder[0, 0, :]) + 1))
+    saver[:, 0] = t
+    saver[:, 1:] = recorder[0, :, :].real
+
+    np.save('data/original_data_t.npy', saver)
+    np.save('data/original_data.npy', recorder[0].real)
+
+
+if __name__ == '__main__':
+    main()

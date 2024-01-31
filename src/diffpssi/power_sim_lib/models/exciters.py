@@ -2,8 +2,8 @@
 Contains the SEXS (Simplified Excitation System) model for power system simulations.
 Other models can be added here as well.
 """
-from src.diffpssi.power_sim_lib.backend import *
-from src.diffpssi.power_sim_lib.models.blocks import LeadLag, PT1Limited
+from diffpssi.power_sim_lib.backend import *
+from diffpssi.power_sim_lib.models.blocks import LeadLag, PT1Limited
 
 
 class SEXS(object):
@@ -20,16 +20,44 @@ class SEXS(object):
         v_setpoint (float or torch.Tensor): The setpoint for the system voltage.
         bias (float or torch.Tensor): A bias value for voltage control.
     """
-    def __init__(self, param_dict, parallel_sims, v_setpoint):
+
+    def __init__(self, param_dict=None,
+                 name=None,
+                 gen=None,
+                 t_a=None,
+                 t_b=None,
+                 t_e=None,
+                 k=None,
+                 e_min=None,
+                 e_max=None,
+                 ):
         """
         Initializes the SEXS model with specified parameters.
 
         Args:
             param_dict (dict, optional): A dictionary of parameters for the model.
-            parallel_sims (int, optional): Number of parallel simulations to enable.
-            v_setpoint (float, optional): The setpoint for the system voltage. Default is 1.0.
+            name (str, optional): The name of the model.
+            gen (str, optional): The name of the generator the model is connected to.
+            t_a (float, optional): The time constant t1 of the lead-lag control block.
+            t_b (float, optional): The time constant t2 of the lead-lag control block.
+            t_e (float, optional): The time constant t of the PT1 transfer function block.
+            k (float, optional): The gain of the PT1 transfer function block.
+            e_min (float, optional): The minimum value of the output of the PT1 transfer function block.
+            e_max (float, optional): The maximum value of the output of the PT1 transfer function block.
         """
+        if param_dict is None:
+            param_dict = {
+                'name': name,
+                'gen': gen,
+                'T_a': t_a,
+                'T_b': t_b,
+                'T_e': t_e,
+                'K': k,
+                'E_min': e_min,
+                'E_max': e_max,
+            }
         self.name = param_dict['name']
+        self.gen = param_dict['gen']
         self.t_a = param_dict['T_a']
         self.t_b = param_dict['T_b']
         self.t_e = param_dict['T_e']
@@ -37,11 +65,10 @@ class SEXS(object):
         self.e_min = param_dict['E_min']
         self.e_max = param_dict['E_max']
 
-        self.lead_lag = LeadLag(t_1=self.t_a, t_2=self.t_b, parallel_sims=parallel_sims)
-        self.pt1_lim = PT1Limited(t_pt1=self.t_e, gain_pt1=self.k, lim_min=self.e_min, lim_max=self.e_max,
-                                  parallel_sims=parallel_sims)
+        self.lead_lag = LeadLag(t_1=self.t_a, t_2=self.t_b)
+        self.pt1_lim = PT1Limited(t_pt1=self.t_e, gain_pt1=self.k, lim_min=self.e_min, lim_max=self.e_max)
 
-        self.v_setpoint = v_setpoint
+        self.v_setpoint = 0.0
         self.bias = 0.0
 
     def differential(self):
@@ -96,6 +123,8 @@ class SEXS(object):
         """
         self.v_setpoint = torch.ones((parallel_sims, 1), dtype=torch.float64) * self.v_setpoint
         self.bias = torch.ones((parallel_sims, 1), dtype=torch.float64) * self.bias
+        self.lead_lag.enable_parallel_simulation(parallel_sims)
+        self.pt1_lim.enable_parallel_simulation(parallel_sims)
 
     def initialize(self, e_fd):
         """

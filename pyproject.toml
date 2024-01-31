@@ -4,10 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "diffpssi"
-version = "0.0.1"
+version = "0.0.3"
 authors = [
   { name="Georg Kordowich", email="georg.kordowich@fau.de" },
 ]
+dependencies = [
+  "matplotlib",
+  "numpy",
+  "torch",
+  "tqdm",
+]
+
 description = "A differentiable power system simulation tool"
 readme = "README.md"
 requires-python = ">=3.8"

@@ -1,10 +1,14 @@
 """
-This example shows how to simulate the IBB model.
+This example shows how to manually create and simulate the IBB model.
 """
+import os
+
 import numpy as np
 import matplotlib.pyplot as plt
-import examples.models.ibb_model.ibb_model as mdl
 from diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
+
+from diffpssi.power_sim_lib.models.synchronous_machine import SynchMachine
+from diffpssi.power_sim_lib.models.static_models import *
 
 
 def record_desired_parameters(simulation):
@@ -35,8 +39,27 @@ def main():
               sim_time=10,
               time_step=0.005,
               solver='heun',
-              grid_data=mdl.load(),
               )
+
+    sim.fn = 60
+    sim.base_mva = 2200
+    sim.base_voltage = 24
+
+    sim.add_bus(Bus(name='Bus 0', v_n=24))
+    sim.add_bus(Bus(name='Bus 1', v_n=24))
+
+    sim.add_line(Line(name='L1', from_bus='Bus 0', to_bus='Bus 1', length=1, s_n=2200, v_n=24, unit='p.u.',
+                      r=0, x=0.65, b=0, s_n_sys=2200, v_n_sys=24))
+
+    sim.add_generator(SynchMachine(name='IBB', bus='Bus 0', s_n=22000, v_n=24, p=-1998, v=0.995, h=3.5e7, d=0,
+                                   x_d=1.81, x_q=1.76, x_d_t=0.3, x_q_t=0.65, x_d_st=0.23, x_q_st=0.23, t_d0_t=8.0,
+                                   t_q0_t=1, t_d0_st=0.03, t_q0_st=0.07, f_n_sys=60, s_n_sys=2200, v_n_sys=24))
+    sim.add_generator(SynchMachine(name='Gen 1', bus='Bus 1', s_n=2200, v_n=24, p=1998, v=1, h=3.5, d=0, x_d=1.81,
+                                   x_q=1.76, x_d_t=0.3, x_q_t=0.65, x_d_st=0.23, x_q_st=0.23, t_d0_t=8.0, t_q0_t=1,
+                                   t_d0_st=0.03, t_q0_st=0.07, f_n_sys=60, s_n_sys=2200, v_n_sys=24))
+
+    sim.set_slack_bus('Bus 0')
+
     sim.add_sc_event(1, 1.05, 'Bus 1')
     sim.set_record_function(record_desired_parameters)
 
@@ -52,7 +75,8 @@ def main():
         plt.xlabel('Time [s]')
     plt.show()
 
-    np.save('./data/original_data.npy', recorder[0].real)
+    if os.environ.get('DIFFPSSI_TESTING') == 'True':
+        np.save('./data/original_data.npy', recorder[0].real)
 
 
 if __name__ == '__main__':

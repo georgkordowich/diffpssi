@@ -4,8 +4,8 @@ This example shows how to use the PowerSystemOptimization class to optimize the 
 import numpy as np
 import torch
 import examples.models.ibb_model.ibb_model as mdl
-from src.diffpssi.optimization_lib.ps_optimization import PowerSystemOptimization
-from src.diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
+from diffpssi.optimization_lib.ps_optimization import PowerSystemOptimization
+from diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
 
 np.random.seed(0)
 
@@ -95,3 +95,7 @@ def main(parallel_sims=100):
                                   )
 
     opt.run()
+
+
+if __name__ == '__main__':
+    main()

@@ -1,7 +1,7 @@
 """
 File contains implemented controller blocks for power system simulations.
 """
-from src.diffpssi.power_sim_lib.backend import *
+from diffpssi.power_sim_lib.backend import *
 
 
 class PT1Limited(object):
@@ -20,7 +20,7 @@ class PT1Limited(object):
         state_1 (float or torch.Tensor): Internal state of the PT1Limited block.
     """
 
-    def __init__(self, t_pt1, gain_pt1, lim_min, lim_max, parallel_sims=None):
+    def __init__(self, t_pt1, gain_pt1, lim_min, lim_max):
         """
         Initializes the PT1Limited block with specified parameters.
 
@@ -29,13 +29,11 @@ class PT1Limited(object):
             gain_pt1 (float): Gain of the PT1 transfer function.
             lim_min (float): Minimum limit for the output.
             lim_max (float): Maximum limit for the output.
-            parallel_sims (int, optional): Number of parallel simulations to enable.
         """
         self.t_pt1 = t_pt1
         self.gain_pt1 = gain_pt1
         self.lim_min = lim_min
         self.lim_max = lim_max
-        self.enable_parallel_simulation(parallel_sims)
 
         self.input = 0
 
@@ -124,7 +122,7 @@ class Limiter(object):
         limit (float or torch.Tensor): The limit value for both positive and negative sides.
     """
 
-    def __init__(self, limit, parallel_sims=None):
+    def __init__(self, limit):
         """
         Initializes the Limiter block with a specified limit.
 
@@ -133,7 +131,6 @@ class Limiter(object):
             parallel_sims (int, optional): Number of parallel simulations to enable.
         """
         self.limit = limit
-        self.enable_parallel_simulation(parallel_sims)
 
     def get_output(self, input_var):
         """
@@ -173,7 +170,7 @@ class LeadLag(object):
         state_1 (float or torch.Tensor): Internal state of the LeadLag block.
     """
 
-    def __init__(self, t_1, t_2, parallel_sims=None):
+    def __init__(self, t_1, t_2):
         """
         Initializes the LeadLag block with specified parameters.
 
@@ -184,7 +181,6 @@ class LeadLag(object):
         """
         self.t_1 = t_1
         self.t_2 = t_2
-        self.enable_parallel_simulation(parallel_sims)
 
         self.input = 0
         self.state_1 = 0
@@ -265,7 +261,7 @@ class Washout(object):
         state_1 (float or torch.Tensor): Internal state of the Washout block.
     """
 
-    def __init__(self, k_w, t_w, parallel_sims=None):
+    def __init__(self, k_w, t_w):
         """
         Initializes the Washout filter with specified parameters.
 
@@ -276,7 +272,6 @@ class Washout(object):
         """
         self.k_w = k_w
         self.t_w = t_w
-        self.enable_parallel_simulation(parallel_sims)
 
         self.input = 0
         self.state_1 = 0

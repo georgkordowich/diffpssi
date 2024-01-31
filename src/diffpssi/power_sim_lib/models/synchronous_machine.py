@@ -2,12 +2,7 @@
 The model of a generator (Synchronous Machine Model) is defined in this file.
 The model is a 6th order differential equation, which is solved during the simulation.
 """
-import torch
-
-from src.diffpssi.power_sim_lib.models.exciters import SEXS
-from src.diffpssi.power_sim_lib.backend import *
-from src.diffpssi.power_sim_lib.models.governors import TGOV1
-from src.diffpssi.power_sim_lib.models.stabilizers import STAB1
+from diffpssi.power_sim_lib.backend import *
 
 
 class SynchMachine(object):
@@ -24,16 +19,78 @@ class SynchMachine(object):
         governor (TGOV1): The governor model associated with the machine.
         stabilizer (STAB1): The power system stabilizer model associated with the machine.
     """
-    def __init__(self, param_dict, f_n_sys, s_n_sys, v_n_sys, parallel_sims):
+
+    def __init__(self, f_n_sys, s_n_sys, v_n_sys,
+                 param_dict=None,
+                 name=None,
+                 bus=None,
+                 s_n=None,
+                 v_n=None,
+                 p=None,
+                 v=None,
+                 h=None,
+                 d=None,
+                 x_d=None,
+                 x_q=None,
+                 x_d_t=None,
+                 x_q_t=None,
+                 x_d_st=None,
+                 x_q_st=None,
+                 t_d0_t=None,
+                 t_q0_t=None,
+                 t_d0_st=None,
+                 t_q0_st=None,
+                 ):
         """
         Initializes the SynchMachine object with specified parameters.
 
         Args:
             param_dict (dict, optional): A dictionary of parameters for the machine.
-            s_n, v_n, p_soll_mw, v_soll, h, d, x_d, x_q, x_d_t, x_q_t, x_d_st, x_q_st, t_d0_t, t_q0_t, t_d0_st, t_q0_st:
-                Electrical and mechanical characteristics of the machine.
-            parallel_sims (int, optional): Number of parallel simulations to enable.
+            name (str, optional): The name of the machine.
+            bus (Bus, optional): The bus the machine is connected to.
+            s_n (float, optional): The apparent power rating of the machine in MVA.
+            v_n (float, optional): The rated voltage of the machine in kV.
+            p (float, optional): The active power of the machine in MW.
+            v (float, optional): The voltage of the machine in per unit.
+            h (float, optional): The inertia constant of the machine in seconds.
+            d (float, optional): The damping coefficient of the machine in pu.
+            x_d (float, optional): The direct-axis transient reactance of the machine in pu.
+            x_q (float, optional): The quadrature-axis transient reactance of the machine in pu.
+            x_d_t (float, optional): The direct-axis transient reactance of the machine in pu.
+            x_q_t (float, optional): The quadrature-axis transient reactance of the machine in pu.
+            x_d_st (float, optional): The direct-axis subtransient reactance of the machine in pu.
+            x_q_st (float, optional): The quadrature-axis subtransient reactance of the machine in pu.
+            t_d0_t (float, optional): The direct-axis open-circuit time constant of the machine in seconds.
+            t_q0_t (float, optional): The quadrature-axis open-circuit time constant of the machine in seconds.
+            t_d0_st (float, optional): The direct-axis open-circuit subtransient time constant of the machine in
+            seconds.
+            t_q0_st (float, optional): The quadrature-axis open-circuit subtransient time constant of the machine in
+            seconds.
         """
+        if param_dict is None:
+            param_dict = {
+                'name': name,
+                'bus': bus,
+                'S_n': s_n,
+                'V_n': v_n,
+                'P': p,
+                'V': v,
+                'H': h,
+                'D': d,
+                'X_d': x_d,
+                'X_q': x_q,
+                'X_d_t': x_d_t,
+                'X_q_t': x_q_t,
+                'X_d_st': x_d_st,
+                'X_q_st': x_q_st,
+                'T_d0_t': t_d0_t,
+                'T_q0_t': t_q0_t,
+                'T_d0_st': t_d0_st,
+                'T_q0_st': t_q0_st,
+            }
+
+        self.parallel_sims = None
+
         self.name = param_dict['name']
         self.bus = param_dict['bus']
         self.s_n = param_dict['S_n']
@@ -78,10 +135,6 @@ class SynchMachine(object):
         self.governor = None
         self.stabilizer = None
 
-        self.parallel_sims = parallel_sims
-
-        self.enable_parallel_simulation(parallel_sims)
-
     def differential(self):
         """
         Computes the differential equations governing the dynamics of the synchronous machine.
@@ -120,36 +173,33 @@ class SynchMachine(object):
 
         return deriv_vec
 
-    def add_exciter(self, exciter_dict, parallel_sims):
+    def add_exciter(self, exciter_model):
         """
         Associates an exciter model with the synchronous machine.
 
         Args:
-            exciter_dict (dict): A dictionary containing parameters for initializing the exciter model.
-            parallel_sims (int): Number of parallel simulations to enable.
+            exciter_model: The exciter model to associate with the machine.
         """
-        self.exciter = SEXS(param_dict=exciter_dict, parallel_sims=parallel_sims, v_setpoint=self.v_soll)
+        self.exciter = exciter_model
 
-    def add_governor(self, governor_dict, parallel_sims):
+    def add_governor(self, governor_model):
         """
         Associates a governor model with the synchronous machine.
 
         Args:
-            governor_dict (dict): A dictionary containing parameters for initializing the governor model.
-            parallel_sims (int): Number of parallel simulations to enable.
+            governor_model: The governor model to associate with the machine.
         """
-        self.governor = TGOV1(param_dict=governor_dict, parallel_sims=parallel_sims)
+        self.governor = governor_model
 
-    def add_pss(self, pss_dict, parallel_sims):
+    def add_pss(self, pss_model):
         """
         Associates a power system stabilizer model with the synchronous machine.
 
         Args:
-            pss_dict (dict): A dictionary containing parameters for initializing the power system stabilizer model.
-            parallel_sims (int): Number of parallel simulations to enable.
+            pss_model: The power system stabilizer model to associate with the machine.
         """
 
-        self.stabilizer = STAB1(param_dict=pss_dict, parallel_sims=parallel_sims)
+        self.stabilizer = pss_model
 
     def set_state_vector(self, x):
         """
@@ -207,7 +257,7 @@ class SynchMachine(object):
         i_q = self.e_d_st / (1j * self.x_q_st) * torch.exp(1j * (self.delta - torch.pi / 2))
 
         # transform it to the base system. sn/vn is local per unit and sys_s_n/sys_v_n is global per unit
-        i_inj = (i_d + i_q)*(self.s_n / self.s_n_sys)
+        i_inj = (i_d + i_q) * (self.s_n / self.s_n_sys)
         return i_inj
 
     def update_internal_vars(self, v_bb):
@@ -237,7 +287,7 @@ class SynchMachine(object):
 
         # First calculate the currents of the generator at the busbar.
         # Those currents can then be used to calculate all internal voltages.
-        i_gen = torch.conj(s_calc / v_bb)/(self.s_n / self.s_n_sys)
+        i_gen = torch.conj(s_calc / v_bb) / (self.s_n / self.s_n_sys)
 
         # Calculate the internal voltages and angle of the generator
         # Basically this is always U2 = U1 + jX * I
@@ -260,7 +310,7 @@ class SynchMachine(object):
         self.e_q_st = v_q + self.x_d_st * i_d
         self.e_d_st = v_d - self.x_q_st * i_q
 
-        self.p_m = s_calc.real/(self.s_n / self.s_n_sys)
+        self.p_m = s_calc.real / (self.s_n / self.s_n_sys)
         self.e_fd = self.e_q_t + i_d * (self.x_d - self.x_d_t)
 
         if self.exciter:
@@ -297,7 +347,7 @@ class SynchMachine(object):
             torch.Tensor: Admittance of the synchronous machine.
         """
         if dyn:
-            return -1j/self.x_d_st * (self.s_n / self.s_n_sys)
+            return -1j / self.x_d_st * (self.s_n / self.s_n_sys)
         else:
             return torch.zeros((self.parallel_sims, 1), dtype=torch.complex128)
 
@@ -308,7 +358,7 @@ class SynchMachine(object):
         Returns:
             torch.Tensor: The load flow power.
         """
-        return (self.p_soll_mw + 1j * 0)/self.s_n_sys
+        return (self.p_soll_mw + 1j * 0) / self.s_n_sys
 
     def enable_parallel_simulation(self, parallel_sims):
         """
@@ -317,35 +367,36 @@ class SynchMachine(object):
         Args:
             parallel_sims (int): Number of parallel simulations.
         """
+        self.parallel_sims = parallel_sims
 
-        self.s_n = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.s_n
-        self.v_n = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.v_n
+        self.s_n = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.s_n
+        self.v_n = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.v_n
         self.p_soll_mw = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.p_soll_mw
-        self.v_soll = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.v_soll
+        self.v_soll = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.v_soll
 
-        self.h = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.h
-        self.d = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.d
-        self.x_d = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.x_d
-        self.x_q = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.x_q
-        self.x_d_t = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.x_d_t
-        self.x_q_t = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.x_q_t
-        self.x_d_st = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.x_d_st
-        self.x_q_st = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.x_q_st
-        self.t_d0_t = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.t_d0_t
-        self.t_q0_t = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.t_q0_t
-        self.t_d0_st = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.t_d0_st
-        self.t_q0_st = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.t_q0_st
+        self.h = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.h
+        self.d = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.d
+        self.x_d = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.x_d
+        self.x_q = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.x_q
+        self.x_d_t = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.x_d_t
+        self.x_q_t = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.x_q_t
+        self.x_d_st = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.x_d_st
+        self.x_q_st = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.x_q_st
+        self.t_d0_t = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.t_d0_t
+        self.t_q0_t = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.t_q0_t
+        self.t_d0_st = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.t_d0_st
+        self.t_q0_st = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.t_q0_st
 
-        self.omega = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.omega
-        self.delta = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.delta
-        self.e_q_t = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.e_q_t
-        self.e_d_t = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.e_d_t
-        self.e_q_st = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.e_q_st
-        self.e_d_st = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.e_d_st
+        self.omega = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.omega
+        self.delta = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.delta
+        self.e_q_t = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.e_q_t
+        self.e_d_t = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.e_d_t
+        self.e_q_st = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.e_q_st
+        self.e_d_st = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.e_d_st
 
-        self.p_m = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.p_m
-        self.p_e = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.p_e
-        self.e_fd = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.e_fd
-        self.i_d = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.i_d
-        self.i_q = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.i_q
-        self.v_bb = torch.ones((parallel_sims, 1), dtype=torch.complex128)*self.v_bb
+        self.p_m = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.p_m
+        self.p_e = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.p_e
+        self.e_fd = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.e_fd
+        self.i_d = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.i_d
+        self.i_q = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.i_q
+        self.v_bb = torch.ones((parallel_sims, 1), dtype=torch.complex128) * self.v_bb

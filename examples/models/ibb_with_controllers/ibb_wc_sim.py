@@ -4,8 +4,8 @@ This example shows how to simulate the IBB model with controllers.
 import numpy as np
 import matplotlib.pyplot as plt
 import examples.models.ibb_with_controllers.ibb_wc_model as mdl
-from src.diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
-from src.diffpssi.power_sim_lib.backend import *
+from diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
+from diffpssi.power_sim_lib.backend import *
 
 
 def record_desired_parameters(simulation):

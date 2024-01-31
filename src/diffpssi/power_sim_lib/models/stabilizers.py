@@ -1,8 +1,8 @@
 """
 Contains the STAB1 model for power system stabilizers. Other models can be added here as well.
 """
-from src.diffpssi.power_sim_lib.backend import *
-from src.diffpssi.power_sim_lib.models.blocks import LeadLag, Washout, Limiter
+from diffpssi.power_sim_lib.backend import *
+from diffpssi.power_sim_lib.models.blocks import LeadLag, Washout, Limiter
 
 
 class STAB1(object):
@@ -20,15 +20,45 @@ class STAB1(object):
         limiter (Limiter): The Limiter block to restrict the output within a specific range.
     """
 
-    def __init__(self, param_dict, parallel_sims):
+    def __init__(self, param_dict=None,
+                 name=None,
+                 gen=None,
+                 k=None,
+                 t=None,
+                 t_1=None,
+                 t_2=None,
+                 t_3=None,
+                 t_4=None,
+                 h_lim=None,
+                 ):
         """
         Initializes the STAB1 model with specified parameters.
 
         Args:
             param_dict (dict, optional): A dictionary of parameters for the model.
-            parallel_sims (int, optional): Number of parallel simulations to enable.
+            name (str, optional): The name of the model.
+            gen (str, optional): The name of the generator the model is connected to.
+            k (float, optional): The gain of the washout filter.
+            t (float, optional): The time constant of the washout filter.
+            t_1 (float, optional): The time constant t1 of the first lead-lag compensator.
+            t_2 (float, optional): The time constant t1 of the second lead-lag compensator.
+            t_3 (float, optional): The time constant t2 of the first lead-lag compensator.
+            t_4 (float, optional): The time constant t2 of the second lead-lag compensator.
         """
+        if param_dict is None:
+            param_dict = {
+                'name': name,
+                'gen': gen,
+                'K': k,
+                'T': t,
+                'T_1': t_1,
+                'T_2': t_2,
+                'T_3': t_3,
+                'T_4': t_4,
+                'H_lim': h_lim,
+            }
         self.name = param_dict['name']
+        self.gen = param_dict['gen']
         self.k_w = param_dict['K']
         self.t_w = param_dict['T']
         self.t_1 = param_dict['T_1']
@@ -37,10 +67,10 @@ class STAB1(object):
         self.t_4 = param_dict['T_4']
         self.h_lim = param_dict['H_lim']
 
-        self.washout = Washout(k_w=self.k_w, t_w=self.t_w, parallel_sims=parallel_sims)
-        self.lead_lag1 = LeadLag(t_1=self.t_1, t_2=self.t_3, parallel_sims=parallel_sims)
-        self.lead_lag2 = LeadLag(t_1=self.t_2, t_2=self.t_4, parallel_sims=parallel_sims)
-        self.limiter = Limiter(limit=self.h_lim, parallel_sims=parallel_sims)
+        self.washout = Washout(k_w=self.k_w, t_w=self.t_w)
+        self.lead_lag1 = LeadLag(t_1=self.t_1, t_2=self.t_3)
+        self.lead_lag2 = LeadLag(t_1=self.t_2, t_2=self.t_4)
+        self.limiter = Limiter(limit=self.h_lim)
 
     def differential(self):
         """
@@ -97,7 +127,10 @@ class STAB1(object):
         Args:
             parallel_sims (int): Number of parallel simulations.
         """
-        pass
+        self.washout.enable_parallel_simulation(parallel_sims)
+        self.lead_lag1.enable_parallel_simulation(parallel_sims)
+        self.lead_lag2.enable_parallel_simulation(parallel_sims)
+        self.limiter.enable_parallel_simulation(parallel_sims)
 
     def initialize(self, v_pss):
         """

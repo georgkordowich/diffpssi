@@ -1,8 +1,8 @@
 """
 File containing the TGOV1 model. Other governor models can be added here.
 """
-from src.diffpssi.power_sim_lib.backend import *
-from src.diffpssi.power_sim_lib.models.blocks import LeadLag, PT1Limited
+from diffpssi.power_sim_lib.backend import *
+from diffpssi.power_sim_lib.models.blocks import LeadLag, PT1Limited
 
 
 class TGOV1(object):
@@ -18,16 +18,48 @@ class TGOV1(object):
         lead_lag (LeadLag): The LeadLag block representing the compensator.
         p_ref (float or torch.Tensor): The reference power setpoint for the governor.
     """
-    def __init__(self, param_dict, parallel_sims):
+
+    def __init__(self, param_dict=None,
+                 name=None,
+                 gen=None,
+                 r=None,
+                 d_t=None,
+                 t_1=None,
+                 t_2=None,
+                 t_3=None,
+                 v_min=None,
+                 v_max=None,
+                 ):
         """
         Initializes the TGOV1 model with specified parameters.
 
         Args:
             param_dict (dict, optional): A dictionary of parameters for the model.
-            parallel_sims (int, optional): Number of parallel simulations to enable.
+            name (str, optional): The name of the model.
+            gen (str, optional): The name of the generator the model is connected to.
+            r (float, optional): The droop of the governor.
+            d_t (float, optional): The damping coefficient of the governor.
+            t_1 (float, optional): The time constant t1 of the PT1Limited block.
+            t_2 (float, optional): The time constant t1 of the first lead-lag compensator.
+            t_3 (float, optional): The time constant t2 of the first lead-lag compensator.
+            v_min (float, optional): The minimum value of the governor output.
+            v_max (float, optional): The maximum value of the governor output.
         """
+        if param_dict is None:
+            param_dict = {
+                'name': name,
+                'gen': gen,
+                'R': r,
+                'D_t': d_t,
+                'T_1': t_1,
+                'T_2': t_2,
+                'T_3': t_3,
+                'V_min': v_min,
+                'V_max': v_max,
+            }
 
         self.name = param_dict['name']
+        self.gen = param_dict['gen']
         self.r = param_dict['R']
         self.d_t = param_dict['D_t']
         self.t_1 = param_dict['T_1']
@@ -37,9 +69,8 @@ class TGOV1(object):
         self.v_max = param_dict['V_max']
 
         droop = 1 / self.r
-        self.pt1_lim = PT1Limited(t_pt1=self.t_1, gain_pt1=droop, lim_min=self.v_min, lim_max=self.v_max,
-                                  parallel_sims=parallel_sims)
-        self.lead_lag = LeadLag(t_1=self.t_2, t_2=self.t_3, parallel_sims=parallel_sims)
+        self.pt1_lim = PT1Limited(t_pt1=self.t_1, gain_pt1=droop, lim_min=self.v_min, lim_max=self.v_max)
+        self.lead_lag = LeadLag(t_1=self.t_2, t_2=self.t_3)
 
         self.p_ref = 0.0
 
@@ -99,6 +130,8 @@ class TGOV1(object):
             parallel_sims (int): Number of parallel simulations.
         """
         self.p_ref = torch.ones((parallel_sims, 1), dtype=torch.float64) * self.p_ref
+        self.pt1_lim.enable_parallel_simulation(parallel_sims)
+        self.lead_lag.enable_parallel_simulation(parallel_sims)
 
     def initialize(self, p_mech):
         """

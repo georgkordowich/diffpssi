@@ -5,15 +5,22 @@ import os
 import unittest
 import numpy as np
 
-# set environment variable that forces the simulator to always use the heun integrator
-os.environ['DIFFPSSI_FORCE_INTEGRATOR'] = 'heun'
-os.environ['DIFFPSSI_FORCE_SIM_BACKEND'] = 'torch'
-os.environ['DIFFPSSI_FORCE_OPT_ITERS'] = '1'
-os.environ['DIFFPSSI_FORCE_PARALLEL_SIMS'] = '2'
+
+def set_env_vars():
+    """
+    Set the environment variables that are used to force the use of the heun integrator, the use of torch, and the
+    number of parallel simulations.
+    """
+    # set environment variable that forces the simulator to always use the heun integrator
+    os.environ['DIFFPSSI_FORCE_INTEGRATOR'] = 'heun'
+    os.environ['DIFFPSSI_FORCE_SIM_BACKEND'] = 'torch'
+    os.environ['DIFFPSSI_FORCE_OPT_ITERS'] = '1'
+    os.environ['DIFFPSSI_FORCE_PARALLEL_SIMS'] = '2'
 
 
-class TestCustomMultiMachine(unittest.TestCase):
-    def test_simulation_output(self):
+class TestOptRunAbility(unittest.TestCase):
+    def test_custom_multi_machine_opt(self):
+        set_env_vars()
         import examples.models.custom_multi_machine.custom_multi_machine_opt as custom_multi_machine_opt
 
         # get the path of the custom_multi_machine_sim.py file
@@ -24,9 +31,8 @@ class TestCustomMultiMachine(unittest.TestCase):
         # Run the optimization
         custom_multi_machine_opt.main(parallel_sims=2)
 
-
-class TestIbbModel(unittest.TestCase):
-    def test_simulation_output(self):
+    def test_ibb_opt(self):
+        set_env_vars()
         import examples.models.ibb_model.ibb_opt as ibb_opt
 
         # get the path of the ibb_sim.py file
@@ -37,9 +43,8 @@ class TestIbbModel(unittest.TestCase):
         # Run the optimization
         ibb_opt.main(parallel_sims=2)
 
-
-class TestIeee9Bus(unittest.TestCase):
-    def test_simulation_output(self):
+    def test_ieee_9bus_opt(self):
+        set_env_vars()
         import examples.models.ieee_9bus.ieee_9bus_opt as ieee_9bus_opt
 
         # get the path of the ibb_sim.py file
@@ -50,9 +55,7 @@ class TestIeee9Bus(unittest.TestCase):
         # Run the optimization
         ieee_9bus_opt.main(parallel_sims=2)
 
-
-class TestK2A(unittest.TestCase):
-    def test_simulation_output(self):
+    def test_k2a_opt(self):
         import examples.models.k2a.k2a_opt as k2a_opt
 
         # get the path of the ibb_sim.py file

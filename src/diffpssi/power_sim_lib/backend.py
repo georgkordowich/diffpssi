@@ -8,12 +8,10 @@ import os
 BACKEND = 'numpy'  # 'torch' or 'numpy'
 DEFAULT_DEVICE = 'cpu'  # 'cuda' or 'cpu'
 
-try:
-    BACKEND = os.environ['DIFFPSSI_FORCE_SIM_BACKEND']
+if os.environ.get('DIFFPSSI_FORCE_SIM_BACKEND') is not None:
+    BACKEND = os.environ.get('DIFFPSSI_FORCE_SIM_BACKEND')
     print('WARNING: FORCING THE USE OF {} AS BACKEND.'
-          'THIS SHOULD ONLY HAPPEN FOR UNITTESTS'.format(os.environ['DIFFPSSI_FORCE_SIM_BACKEND']))
-except KeyError:
-    pass
+          'THIS SHOULD ONLY HAPPEN FOR UNITTESTS'.format(os.environ.get('DIFFPSSI_FORCE_SIM_BACKEND')))
 
 if BACKEND == 'torch':
     import torch

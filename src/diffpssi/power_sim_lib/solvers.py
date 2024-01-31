@@ -2,7 +2,7 @@
 File contains all the solvers for the power system simulation. The solvers are used to integrate the differential
 equations of the power system simulation. More solvers can be added here
 """
-from src.diffpssi.power_sim_lib.backend import *
+from diffpssi.power_sim_lib.backend import *
 
 
 class Euler(object):

@@ -1,4 +1,18 @@
 # DiffPSSi: A framework for differentiable power system simulations
+## Quickstart
+1. Install Package:
+   ```
+   pip install diffpssi
+   ```
+2. Copy-Paste example simulation from:
+    ```
+    examples/models/ibb_manual/ibb_sim_manual.py
+    ```
+3. Run the simulation:
+    ```
+    python ibb_sim_manual.py
+    ```
+
 ## Overview
 DiffPSSi contains a framework designed for simulating and optimizing the dynamic behavior 
 of power systems. The core idea of the framework is to allow the use of automatic differentiation for dynamic 
@@ -14,13 +28,15 @@ The code is strongly based on [this](https://github.com/hallvar-h/DynPSSimPy) re
 enable the gradient calculation for optimization purposes. The code is still under development and will be extended 
 in the future.
 
+**Note: This repository is still under development and will be extended in the future. Use at your own risk.**
+
 ## Features
-- **Inherently Parallel Implementation:** A unique and most important feature of this simulation framework, as it allows the execution of multiple simulations in parallel by using vectors of parameters for every element.
+- **Inherently Parallel Implementation:** A unique and important feature of this simulation framework, as it allows the execution of multiple simulations in parallel by using vectors of parameters for every element.
 - **Dynamic Simulation:** Allows for detailed dynamic simulations of power systems, including interactions between various components.
 - **Optimization Library:** Features optimizers based on BFGS and automatic differentiation for efficient gradient computation. This part can be used for parameter optimization or identification purposes.
 - **Extensible Model Library:** Contains models of AVRs, governors, stabilizers, static models like lines, loads, transformers, and more.
 - **Backend Flexibility:** Choose between `torch` and `numpy` as backend for computations.
-- **Solver Options:** Includes Euler and Heun methods for numerical integration.
+- **Solver Options:** Includes Euler and Runge Kutta methods for numerical integration.
 
 ## Installation
 
@@ -28,9 +44,9 @@ in the future.
    ```
    git clone git@github.com:georgkordowich/diffpssi.git
    ```
-2. Install the required dependencies:
+2. Install the package:
    ```
-   pip install -r requirements.txt
+   pip install diffpssi
    ```
 3. Run example simulations:
    ```
@@ -38,10 +54,43 @@ in the future.
    ```
 
 ## Usage and Examples
-Detailed usage instructions and examples can be found in the `examples` directory. For a guided introduction, check out the IBB model simulation example under `examples/models/ibb_model/ibb_sim.py` and the corresponding model in `examples/models/ibb_model.py`.
+Detailed usage instructions and examples can be found in the `examples` directory. 
 
-To define a model, you first need to creat the power system simulation (Pss) itself. Afterward, you can add busses,
-generators, and lines as desired.
+Generally, there are two options to create a simulation. One option is to create the model as a dictionary and pass it 
+to the simulation. This is the recommended way. For an example, check out 
+the IBB model simulation example under `examples/models/ibb_model/ibb_sim.py` and the corresponding model 
+in `examples/models/ibb_model.py`.
+
+The other option is to create the model manually in the simulation file. This can be seen in the example under
+`examples/models/ibb_model/ibb_sim_manual.py`. For this option, first a simulation must be created and afterward,
+busses, generators, and lines can be added to the simulation. The following code snippet shows how to create
+a simulation and add busses, generators, and lines to it.
+```python
+sim = Pss(parallel_sims=parallel_sims,
+          sim_time=10,
+          time_step=0.005,
+          solver='heun',
+          )
+
+sim.fn = 60
+sim.base_mva = 2200
+sim.base_voltage = 24
+
+sim.add_bus(Bus(name='Bus 0', v_n=24))
+sim.add_bus(Bus(name='Bus 1', v_n=24))
+
+sim.add_line(Line(name='L1', from_bus='Bus 0', to_bus='Bus 1', length=1, s_n=2200, v_n=24, unit='p.u.',
+                  r=0, x=0.65, b=0, s_n_sys=2200, v_n_sys=24))
+
+sim.add_generator(SynchMachine(name='IBB', bus='Bus 0', s_n=22000, v_n=24, p=-1998, v=0.995, h=3.5e7, d=0,
+                               x_d=1.81, x_q=1.76, x_d_t=0.3, x_q_t=0.65, x_d_st=0.23, x_q_st=0.23, t_d0_t=8.0,
+                               t_q0_t=1, t_d0_st=0.03, t_q0_st=0.07, f_n_sys=60, s_n_sys=2200, v_n_sys=24))
+sim.add_generator(SynchMachine(name='Gen 1', bus='Bus 1', s_n=2200, v_n=24, p=1998, v=1, h=3.5, d=0, x_d=1.81,
+                               x_q=1.76, x_d_t=0.3, x_q_t=0.65, x_d_st=0.23, x_q_st=0.23, t_d0_t=8.0, t_q0_t=1,
+                               t_d0_st=0.03, t_q0_st=0.07, f_n_sys=60, s_n_sys=2200, v_n_sys=24))
+
+sim.set_slack_bus('Bus 0')
+```
 
 Once the model is defined, you can run a simulation. One unique feature of this framework is that you can define
 the number of parallel simulations to run. This is useful for parameter optimization, where you can run multiple

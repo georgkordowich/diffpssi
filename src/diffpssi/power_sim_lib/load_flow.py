@@ -3,7 +3,7 @@ Implementation of the Newton-Raphson load flow algorithm for the initialization 
 """
 from itertools import count
 import time
-from src.diffpssi.power_sim_lib.backend import *
+from diffpssi.power_sim_lib.backend import *
 
 
 def do_load_flow(ps_sim):

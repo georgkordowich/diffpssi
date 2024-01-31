@@ -6,7 +6,7 @@ import time
 import torch
 from matplotlib import pyplot as plt
 
-from src.diffpssi.optimization_lib.optimizers import CustomBFGSREALOptimizer
+from diffpssi.optimization_lib.optimizers import CustomBFGSREALOptimizer
 
 # currently only bfgs is supported, as it works best by far
 optimizer_dict = {
@@ -52,7 +52,7 @@ class PowerSystemOptimization(object):
         self.sim = sim
 
         if sim.backend == 'numpy':
-            raise NotImplementedError('Optimization is only supported for the PyTorch backend.'
+            raise NotImplementedError('Optimization is only supported for the PyTorch backend. '
                                       'Please set the backend to PyTorch in power_sim_lib/backend.py')
 
         self.target_data = original_data
@@ -84,6 +84,7 @@ class PowerSystemOptimization(object):
                 Returns: A vector of the mean absolute error for each batch element of the size (batch-size)
 
                 """
+                # noinspection PyArgumentList
                 return torch.mean(torch.sum(torch.abs(target_data - sim_result), dim=2), axis=1)
 
             self.loss_function = default_loss_function
@@ -151,11 +152,17 @@ class PowerSystemOptimization(object):
         Args:
             max_steps: The maximum number of optimization steps that should be performed.
         """
-        if os.environ['DIFFPSSI_FORCE_OPT_ITERS'] is not None:
-            max_steps = int(os.environ['DIFFPSSI_FORCE_OPT_ITERS'])
+        if os.environ.get('DIFFPSSI_FORCE_OPT_ITERS') is not None:
+            max_steps = int(os.environ.get('DIFFPSSI_FORCE_OPT_ITERS'))
             print('WARNING: FORCING THE USE OF {} OPTIMIZATION ITERATION.'
-                  'THIS SHOULD ONLY HAPPEN FOR UNITTESTS'.format(os.environ['DIFFPSSI_FORCE_OPT_ITERS']))
+                  'THIS SHOULD ONLY HAPPEN FOR UNITTESTS'.format(os.environ.get('DIFFPSSI_FORCE_OPT_ITERS')))
         opt_start_time = time.time()
+
+        min_loss_idx = None  # the index of the current best batch element
+        results = None  # the simulation results
+        t = None  # the timesteps
+        opt_step = None  # the current optimization step
+
         for opt_step in range(max_steps):
             opt_step_start = time.time()
             # set the gradients to zero in order to accumulate the

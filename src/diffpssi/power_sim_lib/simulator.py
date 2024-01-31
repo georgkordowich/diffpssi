@@ -8,11 +8,14 @@ import time
 import numpy as np
 from tqdm import tqdm
 
-from src.diffpssi.power_sim_lib.load_flow import do_load_flow
-from src.diffpssi.power_sim_lib.models.synchronous_machine import SynchMachine
-from src.diffpssi.power_sim_lib.models.static_models import *
-from src.diffpssi.power_sim_lib.backend import *
-from src.diffpssi.power_sim_lib.solvers import solver_dict
+from diffpssi.power_sim_lib.load_flow import do_load_flow
+from diffpssi.power_sim_lib.models.synchronous_machine import SynchMachine
+from diffpssi.power_sim_lib.models.static_models import *
+from diffpssi.power_sim_lib.backend import *
+from diffpssi.power_sim_lib.solvers import solver_dict
+from diffpssi.power_sim_lib.models.governors import TGOV1
+from diffpssi.power_sim_lib.models.stabilizers import STAB1
+from diffpssi.power_sim_lib.models.exciters import SEXS
 
 
 class PowerSystemSimulation(object):
@@ -52,12 +55,13 @@ class PowerSystemSimulation(object):
         reset: Resets the simulation to its initial state.
         run: Runs the simulation.
     """
+
     def __init__(self,
                  time_step,
                  sim_time,
                  parallel_sims,
                  solver,
-                 grid_data,
+                 grid_data=None,
                  verbose=True,
                  ):
         """
@@ -88,18 +92,20 @@ class PowerSystemSimulation(object):
         self.record_func = None
         self.verbose = verbose
 
-        try:
+        if os.environ.get('DIFFPSSI_FORCE_INTEGRATOR') is not None:
             # this should only be used for integration tests
-            self.solver = solver_dict[os.environ['DIFFPSSI_FORCE_INTEGRATOR']]()
+            self.solver = solver_dict[os.environ.get('DIFFPSSI_FORCE_INTEGRATOR')]()
             print('WARNING: FORCING THE USE OF THE {} INTEGRATOR. '
-                  'THIS SHOULD ONLY HAPPEN FOR UNITTESTS'.format(os.environ['DIFFPSSI_FORCE_INTEGRATOR']))
-        except KeyError:
+                  'THIS SHOULD ONLY HAPPEN FOR UNITTESTS'.format(os.environ.get('DIFFPSSI_FORCE_INTEGRATOR')))
+        else:
             self.solver = solver_dict[solver]()
 
-        self.fn = grid_data['f']
-        self.base_mva = grid_data['base_mva']
-        self.base_voltage = grid_data['base_voltage']
-        self.create_grid(grid_data)
+        self.base_voltage = None
+        self.base_mva = None
+        self.fn = None
+
+        if grid_data is not None:
+            self.create_grid(grid_data)
 
         self.backend = BACKEND
 
@@ -125,6 +131,10 @@ class PowerSystemSimulation(object):
         Args:
             grid_data (dict): Dictionary containing the grid data.
         """
+        self.fn = grid_data['f']
+        self.base_mva = grid_data['base_mva']
+        self.base_voltage = grid_data['base_voltage']
+
         transformed_data = {}
         # first transform the data to a more convenient format
         for key, value in grid_data.items():
@@ -142,117 +152,192 @@ class PowerSystemSimulation(object):
                 transformed_data[key] = value
         grid_data = transformed_data
 
-        for bus in grid_data['busses']:
-            self.add_bus(bus)
+        for bus_dict in grid_data['busses']:
+            bus_model = Bus(param_dict=bus_dict)
+            bus_model.enable_parallel_simulation(self.parallel_sims)
+            self.add_bus(bus_model)
 
         generators = grid_data.get('generators', [])
         if isinstance(generators, dict):
-            for model in generators['GEN']:
-                self.add_generator(model)
+            for gen_dict in generators['GEN']:
+                generator_model = SynchMachine(param_dict=gen_dict,
+                                               s_n_sys=self.base_mva,
+                                               v_n_sys=self.base_voltage,
+                                               f_n_sys=self.fn)
+                self.add_generator(generator_model)
 
-        for load in grid_data.get('loads', []):
-            self.add_load(load)
+        for load_dict in grid_data.get('loads', []):
+            load_model = Load(param_dict=load_dict,
+                              s_n_sys=self.base_mva)
+            self.add_load(load_model)
 
-        for shunt in grid_data.get('shunts', []):
-            self.add_shunt(shunt)
+        for shunt_dict in grid_data.get('shunts', []):
+            shunt_model = Shunt(param_dict=shunt_dict,
+                                s_n_sys=self.base_mva)
+            self.add_shunt(shunt_model)
 
-        for line in grid_data.get('lines', []):
-            self.add_line(line)
+        for line_dict in grid_data.get('lines', []):
+            line_model = Line(param_dict=line_dict,
+                              s_n_sys=self.base_mva,
+                              v_n_sys=self.base_voltage)
+            self.add_line(line_model)
 
-        for transformer in grid_data.get('transformers', []):
-            self.add_transformer(transformer)
+        for transformer_dict in grid_data.get('transformers', []):
+            transformer_model = Transformer(param_dict=transformer_dict,
+                                            s_n_sys=self.base_mva)
+            self.add_transformer(transformer_model)
 
         exciters = grid_data.get('avr', [])
         if isinstance(exciters, dict):
-            for model in exciters['SEXS']:
-                self.get_generator_by_name(model['gen']).add_exciter(model, self.parallel_sims)
+            for sexs_dict in exciters['SEXS']:
+                exciter_model = SEXS(param_dict=sexs_dict)
+                self.add_exciter(exciter_model)
 
         governors = grid_data.get('gov', [])
         if isinstance(governors, dict):
-            for model in governors['TGOV1']:
-                self.get_generator_by_name(model['gen']).add_governor(model, self.parallel_sims)
+            for gov_dict in governors['TGOV1']:
+                gov_model = TGOV1(param_dict=gov_dict)
+                self.add_governor(gov_model)
 
         psss = grid_data.get('pss', [])
         if isinstance(psss, dict):
-            for model in psss['STAB1']:
-                self.get_generator_by_name(model['gen']).add_pss(model, self.parallel_sims)
+            for pss_dict in psss['STAB1']:
+                pss_model = STAB1(param_dict=pss_dict)
+                self.add_pss(pss_model)
 
-        self.busses[self.bus_idxs[grid_data['slack_bus']]].lf_type = 'SL'
+        self.set_slack_bus(grid_data['slack_bus'])
 
-    def add_bus(self, param_dict):
+    def set_slack_bus(self, slack_bus):
+        """
+        Sets the slack bus of the system.
+
+        Args:
+            slack_bus (str): The name of the slack bus.
+        """
+        slack_bus_idx = self.bus_idxs[slack_bus]
+        self.busses[slack_bus_idx].lf_type = 'SL'
+
+    def add_bus(self, bus_model):
         """
         Adds a bus to the system.
 
         Args:
-            param_dict (dict): Dictionary containing the parameters of the bus.
+            bus_model (Bus): A bus model to add to the grid.
         """
         # Assign an index to the bus and add it to the list of buses
-        self.bus_idxs[param_dict['name']] = len(self.busses)
-        self.busses.append(Bus(param_dict, self.parallel_sims))
+        self.bus_idxs[bus_model.name] = len(self.busses)
+        bus_model.enable_parallel_simulation(self.parallel_sims)
+        self.busses.append(bus_model)
 
-    def add_generator(self, param_dict):
+    def add_generator(self, generator_model):
         """
         Adds a generator to a specified bus in the system.
 
         Args:
-            param_dict (dict): Dictionary containing the parameters of the generator.
+            generator_model (SynchMachine): A generator model to add to the grid.
         """
-        bus = self.busses[self.bus_idxs[param_dict['bus']]]
-        bus.add_model(SynchMachine(param_dict, self.fn, self.base_mva, bus.v_n, self.parallel_sims))
+        bus = self.busses[self.bus_idxs[generator_model.bus]]
+        generator_model.enable_parallel_simulation(self.parallel_sims)
+        bus.add_model(generator_model)
         # fit the voltage of the bus to the generator
         bus.update_voltages(bus.models[-1].v_soll)
         bus.lf_type = 'PV'
 
-    def add_load(self, param_dict):
+    def add_load(self, load_model):
         """
         Adds a load to a specified bus in the system.
 
         Args:
-            param_dict (dict): Dictionary containing the parameters of the load.
+            load_model (Load): A load model to add to the grid.
         """
-        bus = self.busses[self.bus_idxs[param_dict['bus']]]
-        bus.add_model(Load(param_dict, self.base_mva, bus.v_n, self.parallel_sims))
+        bus = self.busses[self.bus_idxs[load_model.bus]]
+        load_model.enable_parallel_simulation(self.parallel_sims)
+        bus.add_model(load_model)
 
-    def add_shunt(self, param_dict):
+    def add_shunt(self, shunt_model):
         """
-        Adds a load to a specified bus in the system.
+        Adds a shunt to a specified bus in the system.
 
         Args:
-            param_dict (dict): Dictionary containing the parameters of the shunt element.
+            shunt_model (Shunt): A shunt model to add to the grid.
         """
-        bus = self.busses[self.bus_idxs[param_dict['bus']]]
-        bus.add_model(Shunt(param_dict, self.base_mva, bus.v_n, self.parallel_sims))
+        bus = self.busses[self.bus_idxs[shunt_model.bus]]
+        shunt_model.enable_parallel_simulation(self.parallel_sims)
+        bus.add_model(shunt_model)
 
-    def add_line(self, param_dict):
+    def add_line(self, line_model):
         """
         Adds a transmission line between two buses in the system.
 
         Args:
-            param_dict (dict): Dictionary containing the parameters of the line.
+            line_model (Line): A line model to add to the grid.
         """
-        bus_from = self.bus_idxs[param_dict['from_bus']]
-        bus_to = self.bus_idxs[param_dict['to_bus']]
-        self.lines.append(Line(param_dict,
-                               bus_from,
-                               bus_to,
-                               self.base_mva,
-                               self.base_voltage,
-                               parallel_sims=self.parallel_sims))
+        bus_from = self.bus_idxs[line_model.from_bus_name]
+        bus_to = self.bus_idxs[line_model.to_bus_name]
 
-    def add_transformer(self, param_dict):
+        line_model.from_bus_id = bus_from
+        line_model.to_bus_id = bus_to
+
+        line_model.enable_parallel_simulation(self.parallel_sims)
+
+        self.lines.append(line_model)
+
+    def add_transformer(self, transformer_model):
         """
         Adds a transformer between two buses in the system.
 
         Args:
-            param_dict (dict): Dictionary containing the parameters of the transformer.
+            transformer_model (Transformer): A transformer model to add to the grid.
         """
-        bus_from = self.bus_idxs[param_dict['from_bus']]
-        bus_to = self.bus_idxs[param_dict['to_bus']]
-        self.trafos.append(Transfomer(param_dict,
-                                      bus_from,
-                                      bus_to,
-                                      s_n_sys=self.base_mva,
-                                      parallel_sims=self.parallel_sims))
+        bus_from = self.bus_idxs[transformer_model.from_bus_name]
+        bus_to = self.bus_idxs[transformer_model.to_bus_name]
+
+        transformer_model.from_bus_id = bus_from
+        transformer_model.to_bus_id = bus_to
+
+        transformer_model.enable_parallel_simulation(self.parallel_sims)
+
+        self.trafos.append(transformer_model)
+
+    def add_exciter(self, exciter_model):
+        """
+        Adds an exciter to a specified generator in the system.
+        Different exciter models work, for example the SEXS.
+
+        Args:
+            exciter_model (object): An exciter model to add to the grid.
+        """
+        generator = self.get_generator_by_name(exciter_model.gen)
+        exciter_model.v_setpoint = generator.v_soll
+        exciter_model.enable_parallel_simulation(self.parallel_sims)
+
+        generator.add_exciter(exciter_model)
+
+    def add_governor(self, governor_model):
+        """
+        Adds a governor to a specified generator in the system.
+        Different governor models work, for example the TGOV1.
+
+        Args:
+            governor_model (object): A governor model to add to the grid.
+        """
+        generator = self.get_generator_by_name(governor_model.gen)
+        governor_model.enable_parallel_simulation(self.parallel_sims)
+
+        generator.add_governor(governor_model)
+
+    def add_pss(self, pss_model):
+        """
+        Adds a PSS to a specified generator in the system.
+        Different PSS models work, for example the STAB1.
+
+        Args:
+            pss_model (object): A PSS model to add to the grid.
+        """
+        generator = self.get_generator_by_name(pss_model.gen)
+        pss_model.enable_parallel_simulation(self.parallel_sims)
+
+        generator.add_pss(pss_model)
 
     def admittance_matrix(self, dynamic):
         """
@@ -277,19 +362,19 @@ class PowerSystemSimulation(object):
                                                  len(self.busses)),
                                                 dtype=torch.complex128)
             for line in self.lines:
-                self.dynamic_y_matrix[:, line.from_bus, line.to_bus] += line.get_admittance_off_diagonal()
-                self.dynamic_y_matrix[:, line.to_bus, line.from_bus] += line.get_admittance_off_diagonal()
-                self.dynamic_y_matrix[:, line.from_bus, line.from_bus] += line.get_admittance_diagonal()
-                self.dynamic_y_matrix[:, line.to_bus, line.to_bus] += line.get_admittance_diagonal()
+                self.dynamic_y_matrix[:, line.from_bus_id, line.to_bus_id] += line.get_admittance_off_diagonal()
+                self.dynamic_y_matrix[:, line.to_bus_id, line.from_bus_id] += line.get_admittance_off_diagonal()
+                self.dynamic_y_matrix[:, line.from_bus_id, line.from_bus_id] += line.get_admittance_diagonal()
+                self.dynamic_y_matrix[:, line.to_bus_id, line.to_bus_id] += line.get_admittance_diagonal()
 
             for transformer in self.trafos:
-                self.dynamic_y_matrix[:, transformer.from_bus, transformer.to_bus] += (
+                self.dynamic_y_matrix[:, transformer.from_bus_id, transformer.to_bus_id] += (
                     transformer.get_admittance_off_diagonal())
-                self.dynamic_y_matrix[:, transformer.to_bus, transformer.from_bus] += (
+                self.dynamic_y_matrix[:, transformer.to_bus_id, transformer.from_bus_id] += (
                     transformer.get_admittance_off_diagonal())
-                self.dynamic_y_matrix[:, transformer.from_bus, transformer.from_bus] += (
+                self.dynamic_y_matrix[:, transformer.from_bus_id, transformer.from_bus_id] += (
                     transformer.get_admittance_diagonal())
-                self.dynamic_y_matrix[:, transformer.to_bus, transformer.to_bus] += (
+                self.dynamic_y_matrix[:, transformer.to_bus_id, transformer.to_bus_id] += (
                     transformer.get_admittance_diagonal())
 
             for i, bus in enumerate(self.busses):
@@ -303,19 +388,19 @@ class PowerSystemSimulation(object):
                                                 len(self.busses)),
                                                dtype=torch.complex128)
             for line in self.lines:
-                self.static_y_matrix[:, line.from_bus, line.to_bus] += line.get_admittance_off_diagonal()
-                self.static_y_matrix[:, line.to_bus, line.from_bus] += line.get_admittance_off_diagonal()
-                self.static_y_matrix[:, line.from_bus, line.from_bus] += line.get_admittance_diagonal()
-                self.static_y_matrix[:, line.to_bus, line.to_bus] += line.get_admittance_diagonal()
+                self.static_y_matrix[:, line.from_bus_id, line.to_bus_id] += line.get_admittance_off_diagonal()
+                self.static_y_matrix[:, line.to_bus_id, line.from_bus_id] += line.get_admittance_off_diagonal()
+                self.static_y_matrix[:, line.from_bus_id, line.from_bus_id] += line.get_admittance_diagonal()
+                self.static_y_matrix[:, line.to_bus_id, line.to_bus_id] += line.get_admittance_diagonal()
 
             for transformer in self.trafos:
-                self.static_y_matrix[:, transformer.from_bus, transformer.to_bus] += (
+                self.static_y_matrix[:, transformer.from_bus_id, transformer.to_bus_id] += (
                     transformer.get_admittance_off_diagonal())
-                self.static_y_matrix[:, transformer.to_bus, transformer.from_bus] += (
+                self.static_y_matrix[:, transformer.to_bus_id, transformer.from_bus_id] += (
                     transformer.get_admittance_off_diagonal())
-                self.static_y_matrix[:, transformer.from_bus, transformer.from_bus] += (
+                self.static_y_matrix[:, transformer.from_bus_id, transformer.from_bus_id] += (
                     transformer.get_admittance_diagonal())
-                self.static_y_matrix[:, transformer.to_bus, transformer.to_bus] += (
+                self.static_y_matrix[:, transformer.to_bus_id, transformer.to_bus_id] += (
                     transformer.get_admittance_diagonal())
 
             for i, bus in enumerate(self.busses):

@@ -1,4 +1,4 @@
-# DiffPSSi: A framework for differentiable power system simulations
+# DiffPSSi: A Framework for Differentiable Power System Simulations
 ## Quickstart
 1. Install Package:
    ```

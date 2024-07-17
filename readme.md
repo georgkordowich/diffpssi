@@ -33,7 +33,6 @@ in the future.
 ## Features
 - **Inherently Parallel Implementation:** A unique and important feature of this simulation framework, as it allows the execution of multiple simulations in parallel by using vectors of parameters for every element.
 - **Dynamic Simulation:** Allows for detailed dynamic simulations of power systems, including interactions between various components.
-- **Optimization Library:** Features optimizers based on BFGS and automatic differentiation for efficient gradient computation. This part can be used for parameter optimization or identification purposes.
 - **Extensible Model Library:** Contains models of AVRs, governors, stabilizers, static models like lines, loads, transformers, and more.
 - **Backend Flexibility:** Choose between `torch` and `numpy` as backend for computations.
 - **Solver Options:** Includes Euler and Runge Kutta methods for numerical integration.
@@ -135,9 +134,6 @@ plt.show()
 
 For an introductory explanation of how dynamic power system simulations work in principle,
 refer to the article: ["Watts Up with Dynamic Power System Simulations"](https://medium.com/@georg.kordowich/watts-up-with-dynamic-power-system-simulations-c0f16fc99769).
-
-## Citing DiffPSSi
-If you use DiffPSSi in your research, please cite the following paper: [arXiv:2309.16579](https://arxiv.org/abs/2309.16579).
 
 ## Directory Structure
 

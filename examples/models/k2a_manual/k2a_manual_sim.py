@@ -3,13 +3,13 @@ File contains an example of how to simulate the K2A model.
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
+from src.diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
 
-from diffpssi.power_sim_lib.models.synchronous_machine import SynchMachine
-from diffpssi.power_sim_lib.models.static_models import *
-from diffpssi.power_sim_lib.models.exciters import SEXS
-from diffpssi.power_sim_lib.models.governors import TGOV1
-from diffpssi.power_sim_lib.models.stabilizers import STAB1
+from src.diffpssi.power_sim_lib.models.synchronous_machine import SynchMachine
+from src.diffpssi.power_sim_lib.models.static_models import *
+from src.diffpssi.power_sim_lib.models.exciters import SEXS
+from src.diffpssi.power_sim_lib.models.governors import TGOV1
+from src.diffpssi.power_sim_lib.models.stabilizers import STAB1
 
 
 def record_desired_parameters(simulation):

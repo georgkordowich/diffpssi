@@ -4,7 +4,7 @@ This example shows how to simulate the IBB transformer model.
 import numpy as np
 import matplotlib.pyplot as plt
 import examples.models.ibb_transformer.ibb_trans_model as mdl
-from diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
+from src.diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
 
 
 def record_desired_parameters(simulation):

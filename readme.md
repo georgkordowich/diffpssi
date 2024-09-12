@@ -1,28 +1,29 @@
 # DiffPSSi: A Framework for Differentiable Power System Simulations
 ## Quickstart
-1. Install Package:
+1. Clone the repository:
    ```
-   pip install diffpssi
+   git clone git@github.com:georgkordowich/diffpssi.git
    ```
-2. Copy-Paste example simulation from:
+2. Install required packages:
     ```
-    examples/models/ibb_manual/ibb_sim_manual.py
+    pip install -r requirements.txt
     ```
-3. Run the simulation:
+3. Run one of the example simulations, e.g. the IBB model simulation:
     ```
-    python ibb_sim_manual.py
+    python ibb_sim.py
     ```
 
 ## Overview
 DiffPSSi contains a framework designed for simulating and optimizing the dynamic behavior 
-of power systems. The core idea of the framework is to allow the use of automatic differentiation for dynamic 
-power system simulations. Effectively, this allows for the calculation of gradients of all simulation parameters
-with respect to a desired output of the simulation. This is useful for parameter optimization or identification
-or concepts like known operator learning.
+of power systems. The framework has two main benefits: (I) Serve as a modular and relatively efficient dynamic 
+power system simulation over which users have full control for research and educational purposes. (II) Enable 
+the use of automatic differentiation for dynamic power system simulations. Effectively, this allows for the 
+calculation of gradients of all simulation parameters with respect to a desired output of the simulation. 
+This is useful for parameter optimization or identification or integration of neural networks into the simulation.
 
 It includes detailed models of various power system components such as synchronous machines, 
 exciters, governors, and power system stabilizers. The toolkit is built in Python and leverages the power of 
-libraries like torch for efficient computation, making it suitable for both research and educational purposes.
+libraries like numpy efficient computation, and torch for automatic differentiation.
 
 The code is strongly based on [this](https://github.com/hallvar-h/DynPSSimPy) repository, but required a rewrite to 
 enable the gradient calculation for optimization purposes. The code is still under development and will be extended 
@@ -38,19 +39,16 @@ in the future.
 - **Solver Options:** Includes Euler and Runge Kutta methods for numerical integration.
 
 ## Installation
+DiffPSSi is tested with Python 3.9. To install the required packages, run the following command:
+```
+pip install -r requirements.txt
+```
+DiffPSSi is also released as a package on PyPI. To install the package, run the following command:
+```
+pip install diffpssi
+```
+The package is still under development and might not be up to date with the latest version in this repository.
 
-1. Clone the repository:
-   ```
-   git clone git@github.com:georgkordowich/diffpssi.git
-   ```
-2. Install the package:
-   ```
-   pip install diffpssi
-   ```
-3. Run example simulations:
-   ```
-   python examples/models/ibb_model/ibb_sim.py
-   ```
 
 ## Usage and Examples
 Detailed usage instructions and examples can be found in the `examples` directory. 

@@ -3,7 +3,7 @@ Implementation of the Newton-Raphson load flow algorithm for the initialization 
 """
 from itertools import count
 import time
-from diffpssi.power_sim_lib.backend import *
+from src.diffpssi.power_sim_lib.backend import *
 
 
 def do_load_flow(ps_sim):
@@ -27,7 +27,7 @@ def do_load_flow(ps_sim):
     s_soll = torch.stack([bus.get_lf_power() for bus in ps_sim.busses], axis=1)
 
     # The admittance matrix is necessary for the load flow
-    y_bus = ps_sim.admittance_matrix(dynamic=False)
+    y_bus = ps_sim.lf_admittance_matrix()
 
     for ia in count(0):
 

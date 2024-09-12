@@ -47,7 +47,7 @@ class CustomBFGSREALOptimizer(torch.optim.Optimizer):
 
         self.max_step *= self.decay
         if self.verbose:
-            print('Decreasing max. step size to {}'.format(self.max_step))
+            print('Decreasing max. step size to {}'.format(round(self.max_step, 4)))
 
     def step(self, **kwargs):
         """

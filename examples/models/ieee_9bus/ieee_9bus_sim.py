@@ -4,7 +4,7 @@ This example shows how to simulate the IEEE 9 bus system.
 import numpy as np
 import matplotlib.pyplot as plt
 import examples.models.ieee_9bus.ieee_9bus_model as mdl
-from diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
+from src.diffpssi.power_sim_lib.simulator import PowerSystemSimulation as Pss
 
 
 def record_desired_parameters(simulation):
@@ -36,12 +36,10 @@ def record_desired_parameters(simulation):
     return record_list
 
 
-def main():
+def main(parallel_sims=1):
     """
     This function simulates the IEEE 9 bus system.
     """
-    parallel_sims = 1
-
     sim = Pss(parallel_sims=parallel_sims,
               sim_time=5,
               time_step=0.005,
@@ -73,6 +71,8 @@ def main():
 
     np.save('data/original_data.npy', recorder[0].real)
     np.save('data/original_data_t.npy', saver)
+
+    return t, recorder
 
 
 if __name__ == '__main__':

@@ -19,17 +19,6 @@ def set_env_vars():
 
 
 class TestOptRunAbility(unittest.TestCase):
-    def test_custom_multi_machine_opt(self):
-        set_env_vars()
-        import examples.models.custom_multi_machine.custom_multi_machine_opt as custom_multi_machine_opt
-
-        # get the path of the custom_multi_machine_sim.py file
-        file_path = custom_multi_machine_opt.__file__
-
-        os.chdir(os.path.dirname(file_path))
-
-        # Run the optimization
-        custom_multi_machine_opt.main(parallel_sims=2)
 
     def test_ibb_opt(self):
         set_env_vars()

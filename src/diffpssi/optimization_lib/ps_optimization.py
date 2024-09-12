@@ -6,7 +6,7 @@ import time
 import torch
 from matplotlib import pyplot as plt
 
-from diffpssi.optimization_lib.optimizers import CustomBFGSREALOptimizer
+from src.diffpssi.optimization_lib.optimizers import CustomBFGSREALOptimizer
 
 # currently only bfgs is supported, as it works best by far
 optimizer_dict = {
@@ -30,6 +30,7 @@ class PowerSystemOptimization(object):
                  enable_plots=False,
                  normalize_loss=True,
                  loss_function=None,
+                 loss_threshold=None,
                  ):
         """
         :param sim: PowerSystemSimulation object. Used to execute the simulations with the current set of parameters.
@@ -46,13 +47,15 @@ class PowerSystemOptimization(object):
         relative values.
         :param loss_function: A custom loss function that should be used. If none is given, a default loss function
         is used.
+        :param loss_threshold: The threshold for the loss function. If the loss is below this threshold, the optimization
+        is stopped.
 
         :return: None
         """
         self.sim = sim
 
         if sim.backend == 'numpy':
-            raise NotImplementedError('Optimization is only supported for the PyTorch backend. '
+            raise NotImplementedError('Optimization is only supported for the PyTorch backend, not numpy. '
                                       'Please set the backend to PyTorch in power_sim_lib/backend.py')
 
         self.target_data = original_data
@@ -61,6 +64,7 @@ class PowerSystemOptimization(object):
         self.params_original = params_original
 
         self.last_min_loss = None
+        self.loss_threshold = loss_threshold if loss_threshold else 0
         if param_names:
             self.param_names = param_names
         else:
@@ -133,8 +137,8 @@ class PowerSystemOptimization(object):
             plt.xlabel('Time [s]')
 
         plt.legend()
-        plt.savefig('data/plots/optimization_step_{}.png'.format(opt_step))
-        # plt.show()
+        plot_file = os.path.join(os.getcwd(), 'data/plots/optimization_step_{}.png'.format(opt_step))
+        plt.savefig(plot_file)
 
         # get xlims and ylims of all subplots
         if not self.x_lims or not self.y_lims:
@@ -197,19 +201,15 @@ class PowerSystemOptimization(object):
             # take the minimum loss for further analysis
             min_loss_val, min_loss_idx = torch.nan_to_num(loss, 100000).min(dim=0)
 
-            # calculate the gradients for the loss
-            loss.sum().backward()
-
-            # perform the optimization step in order to adapt the parameters using the gradients
-            self.optimizer.step()
-
             # print the minimum loss and the corresponding idx
-            print('Step: {}, Min. Loss Batch: {}, Min. Loss: {}, Time: {:.2f}s'.format(
+            print('Step: {}, Min. Loss Batch: {}, Min. Loss: {}'.format(
                 opt_step,
                 int(min_loss_idx),
-                float(min_loss_val),
-                time.time() - opt_step_start)
+                float(min_loss_val))
             )
+
+            # calculate the gradients for the loss
+            loss.sum().backward()
 
             # print the current best batch of parameters by comprehending them in a list
             print_list = [p[min_loss_idx].detach() for p in self.optimizer.param_groups[0]['params']]
@@ -227,11 +227,12 @@ class PowerSystemOptimization(object):
             print(
                 '----------------------------------------------------------------------------------------------------')
 
-            # if all relative errors are smaller than 1% stop the optimization
-            if self.params_original is not None:
-                if all([abs(float((print_list[i].data.real - self.params_original[i]) / self.params_original[i])) < 0.05
-                        for i in range(len(print_list))]):
-                    break
+            if min_loss_val < self.loss_threshold:
+                print('Loss threshold reached. Optimization stopped.')
+                break
+
+            # perform the optimization step in order to adapt the parameters using the gradients
+            self.optimizer.step()
 
             if self.enable_plots:
                 plt_original_data = self.target_data[min_loss_idx].detach().numpy()

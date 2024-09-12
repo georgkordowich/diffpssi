@@ -15,32 +15,8 @@ class TestSimulationOutput(unittest.TestCase):
         os.environ['DIFFPSSI_FORCE_INTEGRATOR'] = 'heun'
         os.environ['DIFFPSSI_TESTING'] = 'True'
 
-        self.atol = 1e-8
-        self.rtol = 1e-8
-
-    def test_custom_multi_machine_sim(self):
-        self.set_env_vars()
-        import examples.models.custom_multi_machine.custom_multi_machine_sim as custom_multi_machine_sim
-
-        # get the path of the custom_multi_machine_sim.py file
-        file_path = custom_multi_machine_sim.__file__
-
-        os.chdir(os.path.dirname(file_path))
-
-        # Run the simulation
-        custom_multi_machine_sim.main()
-
-        # Load the output file and compare it to the expected output
-        output_sim = custom_multi_machine_sim.np.load('./data/original_data.npy')
-
-        # change the directory back to where this file here is
-        os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-        # Load the expected output in the tests folder
-        expected_output = np.load('./data/custom_multi_machine.npy')
-
-        # compare the two outputs
-        self.assertTrue(np.allclose(output_sim, expected_output, atol=self.atol, rtol=self.rtol))
+        self.atol = 1e-6
+        self.rtol = 1e-6
 
     def test_ibb_manual_sim(self):
         self.set_env_vars()

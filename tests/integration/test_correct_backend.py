@@ -9,6 +9,6 @@ class TestCorrectBackend(unittest.TestCase):
         """
         This test checks if the correct backend is used.
         """
-        import diffpssi.power_sim_lib.backend as backend
+        import src.diffpssi.power_sim_lib.backend as backend
 
         self.assertEqual(backend.BACKEND, 'numpy')

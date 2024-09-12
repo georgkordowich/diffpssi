@@ -4,8 +4,7 @@ Other components can be added here as well. All components do not contain state 
 modeled as static components.
 """
 import torch
-
-from diffpssi.power_sim_lib.backend import *
+from src.diffpssi.power_sim_lib.backend import *
 
 
 class ScEvent(object):
@@ -50,6 +49,54 @@ class ScEvent(object):
             return False
 
 
+class ParamEvent(object):
+    """
+    Represents a parameter event in a power system simulation.
+
+    This class models a parameter event that changes the value of a parameter for a specific component
+    within a specified time window, allowing the simulation of dynamic parameter changes in the system.
+
+    Attributes:
+        start_time (float): The start time of the parameter event.
+        end_time (float): The end time of the parameter event.
+        component (object): The component to which the parameter change applies.
+        parameter (str): The name of the parameter to change.
+        value (float): The new value of the parameter.
+    """
+
+    def __init__(self, start_time, model, param_name, value):
+        """
+        Initializes the ParameterEvent object with the start time, end time, component, parameter, and value.
+
+        Args:
+            start_time (float): The start time of the parameter event.
+            parameter (str): The parameter to change
+            value (float): The new value of the parameter.
+        """
+        self.start_time = start_time
+        self.model = model
+        self.param_name = param_name
+        self.value = value
+        self.handled = False
+
+    def handle_event(self, t):
+        """
+        Checks if the parameter event is active at a given time.
+
+        Args:
+            t (float): The time at which to check the event's activity.
+
+        Returns:
+            bool: True if the event is active at time t, False otherwise.
+        """
+        if not self.handled and t >= self.start_time:
+            # set the attribute by name
+            setattr(self.model, self.param_name, self.value)
+            self.handled = True
+
+
+
+
 class Bus(object):
     """
     Represents a bus in the power system simulation.
@@ -87,6 +134,7 @@ class Bus(object):
         self.v_n = param_dict['V_n']
 
         self.models = []
+        self.diff_models = []
         self.lf_type = 'PQ'
         self.voltage = 1.0
 
@@ -122,6 +170,9 @@ class Bus(object):
             model (GenericModel): The model to add to the bus.
         """
         self.models.append(model)
+        if hasattr(model, 'differential'):
+            self.diff_models.append(model)
+
 
     def get_lf_power(self):
         """

@@ -8,14 +8,14 @@ import time
 import numpy as np
 from tqdm import tqdm
 
-from diffpssi.power_sim_lib.load_flow import do_load_flow
-from diffpssi.power_sim_lib.models.synchronous_machine import SynchMachine
-from diffpssi.power_sim_lib.models.static_models import *
-from diffpssi.power_sim_lib.backend import *
-from diffpssi.power_sim_lib.solvers import solver_dict
-from diffpssi.power_sim_lib.models.governors import TGOV1
-from diffpssi.power_sim_lib.models.stabilizers import STAB1
-from diffpssi.power_sim_lib.models.exciters import SEXS
+from src.diffpssi.power_sim_lib.load_flow import do_load_flow
+from src.diffpssi.power_sim_lib.models.synchronous_machine import SynchMachine
+from src.diffpssi.power_sim_lib.models.static_models import *
+from src.diffpssi.power_sim_lib.backend import *
+from src.diffpssi.power_sim_lib.solvers import solver_dict
+from src.diffpssi.power_sim_lib.models.governors import TGOV1
+from src.diffpssi.power_sim_lib.models.stabilizers import STAB1
+from src.diffpssi.power_sim_lib.models.exciters import SEXS
 
 
 class PowerSystemSimulation(object):
@@ -35,7 +35,7 @@ class PowerSystemSimulation(object):
         base_voltage (float): Base voltage.
         dynamic_y_matrix (torch.Tensor): Admittance matrix for dynamic analysis.
         static_y_matrix (torch.Tensor): Admittance matrix for static analysis.
-        sc_event (ScEvent): Short circuit event object (if any).
+        sc_events (ScEvent): Short circuit event object (if any).
         parallel_sims (int): Number of parallel simulations to run.
         record_func (function): Function to record simulation data.
         verbose (bool): Flag for verbose output.
@@ -84,10 +84,11 @@ class PowerSystemSimulation(object):
         self.lines = []
         self.trafos = []
 
-        self.dynamic_y_matrix = None
+        self.inverse_dynamic_y_matrix = None
         self.static_y_matrix = None
 
-        self.sc_event = None
+        self.sc_events = []
+        self.param_events = []
         self.parallel_sims = parallel_sims
         self.record_func = None
         self.verbose = verbose
@@ -243,6 +244,13 @@ class PowerSystemSimulation(object):
         bus.update_voltages(bus.models[-1].v_soll)
         bus.lf_type = 'PV'
 
+    def add_inverter(self, inverter_model):
+        bus = self.busses[self.bus_idxs[inverter_model.bus]]
+        inverter_model.enable_parallel_simulation(self.parallel_sims)
+        bus.add_model(inverter_model)
+
+        bus.lf_type = 'PQ'
+
     def add_load(self, load_model):
         """
         Adds a load to a specified bus in the system.
@@ -339,74 +347,83 @@ class PowerSystemSimulation(object):
 
         generator.add_pss(pss_model)
 
-    def admittance_matrix(self, dynamic):
+    def inverse_dyn_admittance_matrix(self):
         """
-        Computes and returns the admittance matrix for the system, either dynamic or static.
-
-        Args:
-            dynamic (bool): Flag to choose between dynamic (True) or static (False) admittance matrix.
+        Computes and returns the inverse dynamic admittance matrix for the system, either dynamic or static.
 
         Returns:
             torch.Tensor: The computed admittance matrix.
         """
-        if dynamic and self.dynamic_y_matrix is not None:
+        if self.inverse_dynamic_y_matrix is not None:
             # get the previously computed dynamic y_matrix
-            return self.dynamic_y_matrix
-        elif not dynamic and self.static_y_matrix is not None:
+            return self.inverse_dynamic_y_matrix
+        else:
+            # reconstruct the dynamic y_matrix
+            dynamic_y_matrix = torch.zeros((self.parallel_sims,
+                                            len(self.busses),
+                                            len(self.busses)),
+                                           dtype=torch.complex128)
+            for line in self.lines:
+                dynamic_y_matrix[:, line.from_bus_id, line.to_bus_id] += line.get_admittance_off_diagonal()
+                dynamic_y_matrix[:, line.to_bus_id, line.from_bus_id] += line.get_admittance_off_diagonal()
+                dynamic_y_matrix[:, line.from_bus_id, line.from_bus_id] += line.get_admittance_diagonal()
+                dynamic_y_matrix[:, line.to_bus_id, line.to_bus_id] += line.get_admittance_diagonal()
+
+            for transformer in self.trafos:
+                dynamic_y_matrix[:, transformer.from_bus_id, transformer.to_bus_id] += (
+                    transformer.get_admittance_off_diagonal())
+                dynamic_y_matrix[:, transformer.to_bus_id, transformer.from_bus_id] += (
+                    transformer.get_admittance_off_diagonal())
+                dynamic_y_matrix[:, transformer.from_bus_id, transformer.from_bus_id] += (
+                    transformer.get_admittance_diagonal())
+                dynamic_y_matrix[:, transformer.to_bus_id, transformer.to_bus_id] += (
+                    transformer.get_admittance_diagonal())
+
+            for i, bus in enumerate(self.busses):
+                for model in bus.models:
+                    dynamic_y_matrix[:, i, i] += model.get_admittance(dyn=True).squeeze()
+
+            self.inverse_dynamic_y_matrix = torch.linalg.inv(dynamic_y_matrix)
+            return self.inverse_dynamic_y_matrix
+
+    def lf_admittance_matrix(self):
+        """
+        Computes and returns the static admittance matrix for the system.
+
+        Returns:
+            torch.Tensor: The computed admittance matrix.
+        """
+        if self.static_y_matrix is not None:
             # get the previously computed static y_matrix
             return self.static_y_matrix
-        elif dynamic and self.dynamic_y_matrix is None:
-            # reconstruct the dynamic y_matrix
-            self.dynamic_y_matrix = torch.zeros((self.parallel_sims,
-                                                 len(self.busses),
-                                                 len(self.busses)),
-                                                dtype=torch.complex128)
-            for line in self.lines:
-                self.dynamic_y_matrix[:, line.from_bus_id, line.to_bus_id] += line.get_admittance_off_diagonal()
-                self.dynamic_y_matrix[:, line.to_bus_id, line.from_bus_id] += line.get_admittance_off_diagonal()
-                self.dynamic_y_matrix[:, line.from_bus_id, line.from_bus_id] += line.get_admittance_diagonal()
-                self.dynamic_y_matrix[:, line.to_bus_id, line.to_bus_id] += line.get_admittance_diagonal()
+        # reconstruct the static y_matrix
+        static_y_matrix = torch.zeros((self.parallel_sims,
+                                       len(self.busses),
+                                       len(self.busses)),
+                                      dtype=torch.complex128)
+        for line in self.lines:
+            static_y_matrix[:, line.from_bus_id, line.to_bus_id] += line.get_admittance_off_diagonal()
+            static_y_matrix[:, line.to_bus_id, line.from_bus_id] += line.get_admittance_off_diagonal()
+            static_y_matrix[:, line.from_bus_id, line.from_bus_id] += line.get_admittance_diagonal()
+            static_y_matrix[:, line.to_bus_id, line.to_bus_id] += line.get_admittance_diagonal()
 
-            for transformer in self.trafos:
-                self.dynamic_y_matrix[:, transformer.from_bus_id, transformer.to_bus_id] += (
-                    transformer.get_admittance_off_diagonal())
-                self.dynamic_y_matrix[:, transformer.to_bus_id, transformer.from_bus_id] += (
-                    transformer.get_admittance_off_diagonal())
-                self.dynamic_y_matrix[:, transformer.from_bus_id, transformer.from_bus_id] += (
-                    transformer.get_admittance_diagonal())
-                self.dynamic_y_matrix[:, transformer.to_bus_id, transformer.to_bus_id] += (
-                    transformer.get_admittance_diagonal())
+        for transformer in self.trafos:
+            static_y_matrix[:, transformer.from_bus_id, transformer.to_bus_id] += (
+                transformer.get_admittance_off_diagonal())
+            static_y_matrix[:, transformer.to_bus_id, transformer.from_bus_id] += (
+                transformer.get_admittance_off_diagonal())
+            static_y_matrix[:, transformer.from_bus_id, transformer.from_bus_id] += (
+                transformer.get_admittance_diagonal())
+            static_y_matrix[:, transformer.to_bus_id, transformer.to_bus_id] += (
+                transformer.get_admittance_diagonal())
 
-            for i, bus in enumerate(self.busses):
-                for model in bus.models:
-                    self.dynamic_y_matrix[:, i, i] += model.get_admittance(dynamic).squeeze()
-            return self.dynamic_y_matrix
-        else:
-            # reconstruct the static y_matrix
-            self.static_y_matrix = torch.zeros((self.parallel_sims,
-                                                len(self.busses),
-                                                len(self.busses)),
-                                               dtype=torch.complex128)
-            for line in self.lines:
-                self.static_y_matrix[:, line.from_bus_id, line.to_bus_id] += line.get_admittance_off_diagonal()
-                self.static_y_matrix[:, line.to_bus_id, line.from_bus_id] += line.get_admittance_off_diagonal()
-                self.static_y_matrix[:, line.from_bus_id, line.from_bus_id] += line.get_admittance_diagonal()
-                self.static_y_matrix[:, line.to_bus_id, line.to_bus_id] += line.get_admittance_diagonal()
+        for i, bus in enumerate(self.busses):
+            for model in bus.models:
+                static_y_matrix[:, i, i] += model.get_admittance(dyn=False).squeeze()
 
-            for transformer in self.trafos:
-                self.static_y_matrix[:, transformer.from_bus_id, transformer.to_bus_id] += (
-                    transformer.get_admittance_off_diagonal())
-                self.static_y_matrix[:, transformer.to_bus_id, transformer.from_bus_id] += (
-                    transformer.get_admittance_off_diagonal())
-                self.static_y_matrix[:, transformer.from_bus_id, transformer.from_bus_id] += (
-                    transformer.get_admittance_diagonal())
-                self.static_y_matrix[:, transformer.to_bus_id, transformer.to_bus_id] += (
-                    transformer.get_admittance_diagonal())
+        self.static_y_matrix = static_y_matrix
 
-            for i, bus in enumerate(self.busses):
-                for model in bus.models:
-                    self.static_y_matrix[:, i, i] += model.get_admittance(dynamic).squeeze()
-            return self.static_y_matrix
+        return self.static_y_matrix
 
     def current_injections(self):
         """
@@ -427,7 +444,7 @@ class PowerSystemSimulation(object):
             for model in bus.models:
                 model.initialize(power_inj[:, i], bus.voltage)
         # calculate bus voltages
-        voltages = torch.matmul(torch.linalg.inv(self.admittance_matrix(dynamic=True)), self.current_injections())
+        voltages = torch.matmul(self.inverse_dyn_admittance_matrix(), self.current_injections())
 
         for i, bus in enumerate(self.busses):
             bus.update_voltages(voltages[:, i])
@@ -442,7 +459,19 @@ class PowerSystemSimulation(object):
             bus (str): The name of the bus where the short circuit occurs.
         """
         bus_idx = self.bus_idxs[bus]
-        self.sc_event = ScEvent(start_time, end_time, bus_idx)
+        self.sc_events.append(ScEvent(start_time, end_time, bus_idx))
+
+    def add_param_event(self, timestep, model, parameter, new_val):
+        """
+        Adds a parameter event to the simulation.
+
+        Args:
+            timestep (float): The time step of the parameter event.
+            model (object): The model object to change the parameter of.
+            parameter (str): The name of the parameter to change.
+            new_val (float): The new value of the parameter.
+        """
+        self.param_events.append(ParamEvent(timestep, model, parameter, new_val))
 
     def set_record_function(self, record_func):
         """
@@ -460,11 +489,10 @@ class PowerSystemSimulation(object):
         # reset all model states
         for bus in self.busses:
             bus.reset()
-            pass
 
         self.solver.reset()
         self.static_y_matrix = None
-        self.dynamic_y_matrix = None
+        self.inverse_dynamic_y_matrix = None
 
     def run(self):
         """
@@ -481,9 +509,9 @@ class PowerSystemSimulation(object):
         recorder_list = []
         # copy the tensor of y_matrix
         if BACKEND == 'numpy':
-            original_y_matrix = self.dynamic_y_matrix.copy()
+            original_y_matrix = self.inverse_dynamic_y_matrix.copy()
         elif BACKEND == 'torch':
-            original_y_matrix = self.dynamic_y_matrix.clone()
+            original_y_matrix = self.inverse_dynamic_y_matrix.clone()
         else:
             raise ValueError('Backend not recognized')
 
@@ -493,11 +521,17 @@ class PowerSystemSimulation(object):
             iterator = self.time
 
         for t in iterator:
-            if (self.sc_event is not None) and self.sc_event.is_active(t):
-                # if the sc_event is active set the y_matrix to a matrix with a short circuit at the specified bus
-                self.dynamic_y_matrix[:, self.sc_event.bus, self.sc_event.bus] = 1e6
-            else:
-                self.dynamic_y_matrix[:, :, :] = original_y_matrix
+            for sc_event in self.sc_events:
+                if sc_event.is_active(t):
+                    dynamic_y_matrix = torch.linalg.inv(self.inverse_dynamic_y_matrix)
+                    dynamic_y_matrix[:, sc_event.bus, sc_event.bus] = 1e6
+                    self.inverse_dynamic_y_matrix = torch.linalg.inv(dynamic_y_matrix)
+                else:
+                    # todo
+                    self.inverse_dynamic_y_matrix = original_y_matrix
+
+            for param_event in self.param_events:
+                param_event.handle_event(t)
 
             # do a step with the solver
             self.solver.step(self)

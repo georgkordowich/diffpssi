@@ -2,7 +2,7 @@
 The model of a generator (Synchronous Machine Model) is defined in this file.
 The model is a 6th order differential equation, which is solved during the simulation.
 """
-from diffpssi.power_sim_lib.backend import *
+from src.diffpssi.power_sim_lib.backend import *
 
 
 class SynchMachine(object):
@@ -156,7 +156,7 @@ class SynchMachine(object):
             self.p_m = self.governor.get_output(self.omega)
 
         t_m = self.p_m / (1 + self.omega)
-        d_omega = 1 / (2 * self.h) * (t_m - self.p_e)
+        d_omega = 1 / (2 * self.h) * (t_m - self.p_e - self.d * self.omega)
         d_delta = self.omega * 2 * torch.pi * self.fn
         d_e_q_t = 1 / self.t_d0_t * (self.e_fd - self.e_q_t - self.i_d * (self.x_d - self.x_d_t))
         d_e_d_t = 1 / self.t_q0_t * (-self.e_d_t + self.i_q * (self.x_q - self.x_q_t))
@@ -321,20 +321,6 @@ class SynchMachine(object):
 
         if self.stabilizer:
             self.stabilizer.initialize(self.e_fd * 0)
-
-    def set_sys_vars(self, fn, base_mva, base_voltage):
-        """
-        Sets system-level variables like system frequency and base power.
-
-        Args:
-            fn (float): System frequency.
-            base_mva (float): Base power in MVA.
-            base_voltage (float): Base voltage.
-        """
-
-        self.fn = fn
-        self.s_n_sys = base_mva
-        self.v_n_sys = base_voltage
 
     def get_admittance(self, dyn):
         """

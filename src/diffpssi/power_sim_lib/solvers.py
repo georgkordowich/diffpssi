@@ -2,7 +2,7 @@
 File contains all the solvers for the power system simulation. The solvers are used to integrate the differential
 equations of the power system simulation. More solvers can be added here
 """
-from diffpssi.power_sim_lib.backend import *
+from src.diffpssi.power_sim_lib.backend import *
 
 
 class Euler(object):
@@ -31,23 +31,19 @@ class Euler(object):
             ps_sim (PowerSystemSimulation): The power system simulation object to be integrated.
         """
         # calculate bus voltages
-        voltages = torch.matmul(torch.linalg.inv(ps_sim.admittance_matrix(dynamic=True)), ps_sim.current_injections())
+        voltages = torch.matmul(ps_sim.inverse_dyn_admittance_matrix(), ps_sim.current_injections())
         for i, bus in enumerate(ps_sim.busses):
             bus.update_voltages(voltages[:, i])
 
-            for model in bus.models:
-                try:
-                    model_id = id(model)  # Unique identifier for each model
-                    dxdt_0 = model.differential()
-                    # Use previously stored x_1 if available, else use current state vector
-                    x_0 = self.x_0_store.get(model_id, model.get_state_vector())
-                    x_1 = x_0 + dxdt_0 * ps_sim.time_step
-                    model.set_state_vector(x_1)
-                    # Store x_1 for next step
-                    self.x_0_store[model_id] = x_1
-                except AttributeError:
-                    # This happens for models that do not have a differential function
-                    pass
+            for model in bus.diff_models:
+                model_id = id(model)  # Unique identifier for each model
+                dxdt_0 = model.differential()
+                # Use previously stored x_1 if available, else use current state vector
+                x_0 = self.x_0_store.get(model_id, model.get_state_vector())
+                x_1 = x_0 + dxdt_0 * ps_sim.time_step
+                model.set_state_vector(x_1)
+                # Store x_1 for next step
+                self.x_0_store[model_id] = x_1
 
     def reset(self):
         """
@@ -84,7 +80,7 @@ class Heun(object):
             ps_sim (PowerSystemSimulation): The power system simulation object to be integrated.
         """
         # calculate bus voltages
-        voltages = torch.matmul(torch.linalg.inv(ps_sim.admittance_matrix(dynamic=True)), ps_sim.current_injections())
+        voltages = torch.matmul(ps_sim.inverse_dyn_admittance_matrix(), ps_sim.current_injections())
         for i, bus in enumerate(ps_sim.busses):
             bus.update_voltages(voltages[:, i])
             for model in bus.models:
@@ -103,7 +99,7 @@ class Heun(object):
                     # This happens for models that do not have a differential function
                     pass
 
-        voltages = torch.matmul(torch.linalg.inv(ps_sim.admittance_matrix(dynamic=True)), ps_sim.current_injections())
+        voltages = torch.matmul(ps_sim.inverse_dyn_admittance_matrix(), ps_sim.current_injections())
         for i, bus in enumerate(ps_sim.busses):
             bus.update_voltages(voltages[:, i])
             for model in bus.models:
@@ -151,7 +147,7 @@ class RK4(object):
             ps_sim: The power system simulation object to be integrated.
         """
         # calculate bus voltages
-        voltages = torch.matmul(torch.linalg.inv(ps_sim.admittance_matrix(dynamic=True)), ps_sim.current_injections())
+        voltages = torch.matmul(ps_sim.inverse_dyn_admittance_matrix(), ps_sim.current_injections())
         # calc k1
         for i, bus in enumerate(ps_sim.busses):
             bus.update_voltages(voltages[:, i])
@@ -172,7 +168,7 @@ class RK4(object):
                     # This happens for models that do not have a differential function
                     pass
 
-        voltages = torch.matmul(torch.linalg.inv(ps_sim.admittance_matrix(dynamic=True)), ps_sim.current_injections())
+        voltages = torch.matmul(ps_sim.inverse_dyn_admittance_matrix(), ps_sim.current_injections())
         # calc k2
         for i, bus in enumerate(ps_sim.busses):
             bus.update_voltages(voltages[:, i])
@@ -188,7 +184,7 @@ class RK4(object):
                     # This happens for models that do not have a differential function
                     pass
         # calc k3
-        voltages = torch.matmul(torch.linalg.inv(ps_sim.admittance_matrix(dynamic=True)), ps_sim.current_injections())
+        voltages = torch.matmul(ps_sim.inverse_dyn_admittance_matrix(), ps_sim.current_injections())
         for i, bus in enumerate(ps_sim.busses):
             bus.update_voltages(voltages[:, i])
             for model in bus.models:
@@ -203,7 +199,7 @@ class RK4(object):
                     # This happens for models that do not have a differential function
                     pass
 
-        voltages = torch.matmul(torch.linalg.inv(ps_sim.admittance_matrix(dynamic=True)), ps_sim.current_injections())
+        voltages = torch.matmul(ps_sim.inverse_dyn_admittance_matrix(), ps_sim.current_injections())
         # calc k4
         for i, bus in enumerate(ps_sim.busses):
             bus.update_voltages(voltages[:, i])

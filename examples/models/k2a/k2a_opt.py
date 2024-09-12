@@ -6,8 +6,8 @@ import numpy as np
 import torch
 
 import examples.models.k2a.k2a_model as mdl
-from diffpssi.optimization_lib.ps_optimization import PowerSystemOptimization
-from diffpssi.power_sim_lib.simulator import PowerSystemSimulation
+from src.diffpssi.optimization_lib.ps_optimization import PowerSystemOptimization
+from src.diffpssi.power_sim_lib.simulator import PowerSystemSimulation
 
 np.random.seed(0)
 
